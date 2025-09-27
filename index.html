@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="author" content="@alexisarango2144">
+  <!-- Daratables CSS and JS -->
+  <link
+    href="https://cdn.datatables.net/v/bs5/jq-3.7.0/jszip-3.10.1/dt-2.3.4/b-3.2.5/b-colvis-3.2.5/b-html5-3.2.5/b-print-3.2.5/cr-2.1.1/cc-1.1.0/fh-4.0.3/r-3.0.6/rr-1.5.0/datatables.min.css"
+    rel="stylesheet" integrity="sha384-+Mkl3Q+otRuU8TOEvGDa3Pw+NUpY0MXM9vDkfViVh4O2cEt+Up6YjOFPwf9YolfQ"
+    crossorigin="anonymous">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"
+    integrity="sha384-VFQrHzqBh5qiJIU0uGU5CIW3+OWpdGGJM9LBnGbuIH2mkICcFZ7lPd/AAtI7SNf7"
+    crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"
+    integrity="sha384-/RlQG9uf0M2vcTw3CX7fbqgbj/h8wKxw7C3zu9/GxcBPRKOEcESxaxufwRXqzq6n"
+    crossorigin="anonymous"></script>
+  <script
+    src="https://cdn.datatables.net/v/bs5/jq-3.7.0/jszip-3.10.1/dt-2.3.4/b-3.2.5/b-colvis-3.2.5/b-html5-3.2.5/b-print-3.2.5/cr-2.1.1/cc-1.1.0/fh-4.0.3/r-3.0.6/rr-1.5.0/datatables.min.js"
+    integrity="sha384-PxUH+evkeR+yNjPWfGeMd+MJ9jpFOzJcOsH9V9z5n36KQ2J8ztqdw4GmyRI18se6"
+    crossorigin="anonymous"></script>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+    crossorigin="anonymous"></script>
+  <!-- Bootstrap icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <script src="./js/backend.js"></script>
+  <title>Gestión HC - Ajustes DB</title>
+</head>
+
+<body>
+  <!-- <?!= include('js/script'); ?> -->
+
+  <!-- Navbar Section: Posteriormente se migrará como archivo externo con include en AppScript <?!= include('components/mainNav'); ?> -->
+
+  <nav class="navbar navbar-expand-lg bg-body-tertiary">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">
+        <img src="https://lh3.googleusercontent.com/d/1m04jSqFI9Gh_YWVUNlyp3QFIUxN1y5sM=s220?authuser=0" alt="Logo"
+          width="35" height="35" class="d-inline-block align-text-top">
+        Gestión HC
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav me-auto mb-2 w-100 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link" aria-current="page" href="#">Inicio</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">Configuración</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="#">Consola</a>
+          </li>
+        </ul>
+        <form class="d-flex" role="search">
+          <input class="form-control me-2" type="search" placeholder="Search" aria-label="Buscar" />
+          <button class="btn btn-outline-success" type="submit">Buscar</button>
+        </form>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container mt-5">
+    <section class="card">
+      <div class="card-header card-title text-center fw-semibold">
+        Crear tabla
+      </div>
+      <form action="#" id="tableCreation" class="p-4">
+        <div class="row mb-3">
+          <div class="col">
+            <label for="documentId" class="form-label">ID del documeto</label>
+            <input type="text" class="form-control" id="documentId" placeholder="Ej. patientsMain">
+          </div>
+          <div class="col">
+            <div class="row form-check form-switch">
+              <label class="form-check-label" for="tableWebmasterOnly">Es visible</label>
+              <input class="form-check-input" type="checkbox" checked id="tableWebmasterOnly">
+            </div>
+            <div class="row form-check form-switch">
+              <label class="form-check-label" for="tableAdminOnly">Solo de administrador</label>
+              <input class="form-check-input" type="checkbox" value="" id="tableAdminOnly">
+            </div>
+            <div class="row form-check form-switch">
+              <label class="form-check-label" for="tableIsEnabled">Está habilitada</label>
+              <input class="form-check-input" type="checkbox" id="tableIsEnabled">
+            </div>
+          </div>
+        </div>
+        <div class="row mb-4">
+          <div class="col">
+            <label for="tableDescriptionEs" class="form-label">Descripción (ES)</label>
+            <input type="text" class="form-control" id="tableDescriptionEs" placeholder="Ej. Pacientes">
+          </div>
+          <div class="col">
+            <label for="tableDescriptionEn" class="form-label">Description (EN)</label>
+            <input type="text" class="form-control" id="tableDescriptionEn" placeholder="Ej. Patients">
+          </div>
+        </div>
+
+        <div class="row mb-3">
+          <div class="container-fluid">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h5 class="mb-0">Campos</h5>
+              <button type="button" class="btn btn-primary" id="addFieldBtn" data-bs-toggle="modal"
+                data-bs-target="#fieldCreationModal">
+                <i class="bi bi-plus-lg"></i> Añadir campo
+              </button>
+            </div>
+            <div id="fieldsContainer">
+              <!-- Los campos se añadirán aquí dinámicamente -->
+              <table class="table table-bordered" id="tableAddedFields">
+                <thead>
+                  <tr>
+                    <th scope="col">Index</th>
+                    <th scope="col">ID</th>
+                    <th scope="col">Tipo</th>
+                    <th scope="col">Descripción (ES)</th>
+                    <th scope="col">Visible</th>
+                    <th scope="col">Editable</th>
+                    <th scope="col">Buscable</th>
+                    <th scope="col">Solo Admin</th>
+                    <th scope="col">Habilitado</th>
+                    <th scope="col">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="fieldsTableBody">
+                  <!-- Filas de campos se añadirán aquí -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </form>
+    </section>
+    <!-- Modal de creación de campos -->
+    <div class="modal fade modal-xl" id="fieldCreationModal" data-bs-backdrop="static" data-bs-keyboard="false"
+      tabindex="-1" aria-labelledby="fieldCreationModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="fieldCreationModalLabel">Agregar campo</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="fieldCreationForm">
+              <div class="row">
+                <div class="mb-3 col-4">
+                  <label for="fieldId" class="form-label">ID del campo</label>
+                  <input type="text" class="form-control" id="fieldId" placeholder="Ej. primerNombre" required>
+                </div>
+                <div class="mb-3 col-4">
+                  <label for="fieldType" class="form-label">Tipo de dato</label>
+                  <select class="form-select" id="fieldType" required>
+                    <option disabled selected>Seleccione</option>
+                    <option value="string">String</option>
+                    <option value="number">Number</option>
+                    <option value="date">Date</option>
+                    <option value="boolean">Boolean</option>
+                  </select>
+                </div>
+                <div class="mb-3 col-4">
+                  <label for="fieldMaxLength" class="form-label">Longitud máxima</label>
+                  <input type="number" class="form-control" id="fieldMaxLength" placeholder="Ej. 50" min="1">
+                </div>
+              </div>
+              <div class="row">
+                <div class="mb-3 col-6">
+                  <label for="fieldDescriptionEs" class="form-label">Descripción (ES)</label>
+                  <input type="text" class="form-control" id="fieldDescriptionEs" placeholder="Ej. Primer Nombre"
+                    required>
+                </div>
+                <div class="mb-3 col-6">
+                  <label for="fieldDescriptionEn" class="form-label">Description (EN)</label>
+                  <input type="text" class="form-control" id="fieldDescriptionEn" placeholder="Ej. First Name">
+                </div>
+              </div>
+              <div class="row mx-5 mb-4">
+                <div class="card">
+                  <div class="card-header text-center fw-semibold">
+                    Configuración del campo
+                  </div>
+                  <div class="card-body row m-2 mb-4">
+                    <div class="mb-3 col-4 form-check form-switch">
+                      <input class="form-check-input" type="checkbox" id="fieldIsRequired">
+                      <label class="form-check-label" for="fieldIsRequired">Obligatorio</label>
+                    </div>
+                    <div class="mb-3 col-4 form-check form-switch">
+                      <input class="form-check-input" type="checkbox" id="fieldIsVisible" checked>
+                      <label class="form-check-label" for="fieldIsVisible">Visible</label>
+                    </div>
+                    <div class="mb-3 col-4 form-check form-switch">
+                      <input class="form-check-input" type="checkbox" id="fieldIsEditable" checked>
+                      <label class="form-check-label" for="fieldIsEditable">Editable</label>
+                    </div>
+                    <div class="mb-3 col-4 form-check form-switch">
+                      <input class="form-check-input" type="checkbox" id="fieldIsSearchable">
+                      <label class="form-check-label" for="fieldIsSearchable">Buscable</label>
+                    </div>
+                    <div class="mb-3 col-4 form-check form-switch">
+                      <input class="form-check-input" type="checkbox" id="fieldIsAdminOnly">
+                      <label class="form-check-label" for="fieldIsAdminOnly">Solo admin</label>
+                    </div>
+                    <div class="mb-3 col-4 form-check form-switch">
+                      <input class="form-check-input" type="checkbox" id="fieldIsEnabled" checked>
+                      <label class="form-check-label" for="fieldIsEnabled">Habilitado</label>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <!-- Probamos crear el botón desde JS -->
+                <!-- <button type="button" id="btnCrearCampo" class="btn btn-primary">Crear campo</button>
+                <button type="button" id="btnActualizarCampo" class="btn btn-success d-none">Actualizar campo</button> -->
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Modal de confirmación de sobrescritura de campo -->
+    <div class="modal fade" id="confirmOverwriteModal" data-bs-backdrop="static" tabindex="-1"
+      aria-labelledby="confirmOverwriteModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="confirmOverwriteModalLabel">Campo duplicado</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            Ya existe un campo con ese ID. ¿Deseas sobrescribirlo?
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-target="#fieldCreationModal"
+              data-bs-toggle="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="confirmOverwriteBtn">Sobrescribir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="./js/app.js"></script>
+  <script>
+
+  </script>
+</body>
+
+</html>
