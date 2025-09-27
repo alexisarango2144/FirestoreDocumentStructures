@@ -179,7 +179,7 @@ console.log(patientsMainTable.fields);
 
 const fieldCreationForm = document.getElementById('fieldCreationForm');
 fieldCreationForm.addEventListener('submit', function (event) {
-    event.preventDefault(); // Evita el envío del formulario
+    event.preventDefault(); // Evita el envío clásico del formulario
     agregarCampo();
 });
 
