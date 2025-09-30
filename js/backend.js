@@ -17,6 +17,7 @@ class dataDocument {
                 fields: this.fields,
                 isVisible: this.isVisible,
                 isAdminPrivative: this.isAdminPrivative,
+                
                 isEnabled: this.isEnabled
             }
         };
@@ -98,11 +99,20 @@ class fieldList {
         this.fields = {};
     }
 
+    _reassignIndexes() {
+        // Ordena los campos por el índice actual y reasigna índices consecutivos desde 0
+        const sortedFields = Object.values(this.fields).sort((a, b) => a.index - b.index);
+        sortedFields.forEach((field, idx) => {
+            field.index = idx;
+        });
+    }
+
     addField(newField) {
         if (newField instanceof field) {
             // Asignar el índice según la cantidad de campos actuales
-            newField.index = Object.keys(this.fields).length + 1;
+            newField.index = Object.keys(this.fields).length;
             this.fields[newField.key()] = newField;
+            this._reassignIndexes();
         } else {
             throw new Error('El objeto no es una instancia de la clase field');
         }
@@ -112,17 +122,16 @@ class fieldList {
         fieldArray.forEach(field => {
             this.addField(field);
         });
-
-        // Reasignar los índices para mantener el orden correcto
-        Object.values(this.fields).forEach((field, idx) => {
-            field.index = idx;
-        });
+        this._reassignIndexes();
     }
 
     editField(fieldCode, newField) {
         if (newField instanceof field) {
             if (this.fields[fieldCode]) {
+                // Mantener el índice original
+                newField.index = this.fields[fieldCode].index;
                 this.fields[fieldCode] = newField;
+                this._reassignIndexes();
             } else {
                 throw new Error('El campo con el código especificado no existe');
             }
@@ -134,25 +143,43 @@ class fieldList {
     removeField(fieldCode) {
         if (this.fields[fieldCode]) {
             delete this.fields[fieldCode];
+            this._reassignIndexes();
         } else {
             throw new Error('El campo con el código especificado no existe');
         }
     }
 
     returnFields() {
-        return this.fields
+        // Devuelve los campos ordenados por index ascendente
+        return Object.values(this.fields)
+            .sort((a, b) => a.index - b.index);
     }
 
     listFieldKeys() {
-        return Object.keys(this.fields);
+        // Devuelve los fieldCode ordenados por index ascendente
+        return Object.values(this.fields)
+            .sort((a, b) => (a.index - b.index))
+            .map(field => field.key());
     }
+
     listFieldValues(language = 'es') {
-        return Object.values(this.fields).map(field => field.value(language));
+        // Devuelve los valores ordenados por index ascendente
+        return Object.values(this.fields)
+            .sort((a, b) => (a.index - b.index))
+            .map(field => field.value(language));
     }
+
     listFieldIndexes() {
-        return Object.values(this.fields).map(field => field.index());
+        // Devuelve los índices ordenados por index ascendente
+        return Object.values(this.fields)
+            .sort((a, b) => (a.index - b.index))
+            .map(field => field.index);
     }
+
     listFieldKeyNames() {
-        return Object.values(this.fields).map(field => field.keyValue());
+        // Devuelve los pares {fieldCode: fieldNameEs} ordenados por index ascendente
+        return Object.values(this.fields)
+            .sort((a, b) => (a.index - b.index))
+            .map(field => field.keyValue());
     }
 }

@@ -1,8 +1,72 @@
 // Abrir el modal de creación de campo al cargar la página en modo agregar
 window.addEventListener('DOMContentLoaded', function () {
+    tableAddedFields.clear();
+    fieldToDatatable(patientsFieldList.fields, tableAddedFields);
     setFieldModalMode('add');
     const fieldCreationModal = new bootstrap.Modal(document.getElementById('fieldCreationModal'));
     fieldCreationModal.show();
+});
+ 
+
+const tableAddedFields = new DataTable('#tableAddedFields', {
+    layout: {
+        topStart: null,
+        topEnd: {
+            search: {
+                placeholder: 'Buscar aquí'
+            }
+        },
+        bottomStart: null,
+        bottom: ['pageLength', 'info', 'paging'],
+        bottomEnd: null
+    },
+    responsive: true,
+    paging: true,
+    rowReorder: {
+        dataSrc: '0'
+    },
+    language: {
+        url: './datatables/es-ES.json',
+    },
+    columns: [
+        { title: "Index" },
+        { title: "ID" },
+        { title: "Tipo" },
+        { title: "Descripción (ES)" },
+        { title: "Visible", sortable: false, searchable: false },
+        { title: "Editable", sortable: false, searchable: false },
+        { title: "Buscable" },
+        { title: "Solo Admin", sortable: false, searchable: false },
+        { title: "Habilitado", sortable: false, searchable: false },
+        { title: "Acciones", sortable: false, searchable: false }
+    ],
+    columnDefs: [
+        // Centrar las columnas de checkboxes y acciones
+        { className: "dt-center", targets: [0, 4, 5, 6, 7, 8, 9] }
+    ]
+});
+
+tableAddedFields.on('row-reorder', function (e, details) {
+    if (!details.length) return;
+
+    //Evaluamos los cambios provistos en 'details'.
+    details.forEach(change => {
+        // Obtenemos los datos de la fila que fue movida.
+        // change.node es el elemento que se movió.
+        const rowData = tableAddedFields.row(change.node).data();
+        
+        // Asignamos el ID del campo (fieldCode) que está en la columna 1.
+        const fieldCode = rowData[1];
+        
+        // Asignamos la nueva posición al índice del campo.
+        if (patientsFieldList.fields[fieldCode]) {
+            // Asigna el nuevo valor de details.newPosition a .index
+            patientsFieldList.fields[fieldCode].index = change.newPosition;
+        }
+    });
+
+    // Refrescar la tabla para mostrar los nuevos índices
+    fieldToDatatable(patientsFieldList.fields, tableAddedFields);
 });
 
 
@@ -82,38 +146,7 @@ function showConfirmOverwriteModal(onConfirm) {
     }, 100);
 }
 
-
-const tableAddedFields = new DataTable('#tableAddedFields', {
-    layout: {
-        topStart: null,
-        topEnd: 'search',
-        bottomStart: 'info',
-        bottomEnd: 'paging'
-    },
-    responsive: true,
-    paging: true,
-    language: {
-        url: './datatables/es-ES.json',
-    },
-    columns: [
-        { title: "Index" },
-        { title: "ID" },
-        { title: "Tipo" },
-        { title: "Descripción (ES)" },
-        { title: "Visible", sortable: false, searchable: false },
-        { title: "Editable", sortable: false, searchable: false },
-        { title: "Buscable" },
-        { title: "Solo Admin", sortable: false, searchable: false },
-        { title: "Habilitado", sortable: false, searchable: false },
-        { title: "Acciones", sortable: false, searchable: false }
-    ],
-    columnDefs: [
-        // Centrar las columnas de checkboxes y acciones
-        { className: "dt-center", targets: [0, 4, 5, 6, 7, 8, 9] }
-    ]
-});
-
-
+// Función para actualizar la tabla DataTable con los campos actuales
 function fieldToDatatable(fieldsObj, dataTableInstance) {
     if (!dataTableInstance || typeof dataTableInstance.clear !== 'function' || typeof dataTableInstance.rows !== 'function') {
         console.error('El segundo argumento debe ser una instancia válida de DataTable.');
@@ -136,53 +169,14 @@ function fieldToDatatable(fieldsObj, dataTableInstance) {
     dataTableInstance.draw();
 }
 
-
-// Data de ejemplo para "patientsMain"
-let primerNombre = new field('primerNombre', 0, 'string', 'Primer Nombre', 'First Name', 50, true, true, true, false, true);
-let segundoNombre = new field('segundoNombre', 1, 'string', 'Segundo Nombre', 'Second Name', 50, false, true, true, false, true);
-let primerApellido = new field('primerApellido', 2, 'string', 'Primer Apellido', 'Last Name', 50, true, true, true, false, true);
-let segundoApellido = new field('segundoApellido', 3, 'string', 'Segundo Apellido', 'Second Last Name', 50, false, true, true, false, true);
-let tipoIdentificacion = new field('tipoIdentificacion', 4, 'string', 'Tipo de Identificación', 'Identification Type', 20, true, true, true, false, true);
-let numeroIdentificacion = new field('numeroIdentificacion', 5, 'string', 'Número de Identificación', 'Identification Number', 20, true, true, true, false, true);
-let fechaNacimiento = new field('fechaNacimiento', 6, 'date', 'Fecha de Nacimiento', 'Date of Birth', null, true, true, true, false, true);
-let entidadResponsable = new field('entidadResponsable', 7, 'string', 'Entidad Responsable', 'Responsible Entity', 100, true, true, true, false, true);
-
-let patientsFieldList = new fieldList();
-patientsFieldList.addFields([primerNombre, segundoNombre, primerApellido, segundoApellido, tipoIdentificacion, numeroIdentificacion, fechaNacimiento, entidadResponsable]);
-
-let patientsMainTable = new dataDocument('patientsMain', 'Pacientes', 'Patients', patientsFieldList.fields, true, true, true);
-
-// Pasamos los campos iniciales a la tabla DataTable
-fieldToDatatable(patientsMainTable.fields, tableAddedFields);
-
-
-// Ejemplo de resultado
-console.log('Ejemplo de objeto generado por el constructor de field:');
-console.log(entidadResponsable.structure());
-console.log(JSON.stringify(entidadResponsable.structure(), null, 2));
-
-// Ejemplo de resultado
-console.log('Ejemplo de objeto generado por el constructor de dataDocument:');
-console.log(patientsMainTable.structure());
-console.log(JSON.stringify(patientsMainTable.structure(), null, 2));
-
-
-// Acceder a los datos
-console.log('Descripción ES:', patientsMainTable.tableDescriptionEs);
-console.log('Descripción EN:', patientsMainTable.tableDescriptionEn);
-console.log('Campos:', Object.keys(patientsMainTable.fields));
-console.log('Primer nombre (ES):', patientsMainTable.fields.primerNombre.value('es'));
-console.log('Primer nombre (EN):', patientsMainTable.fields.primerNombre.value('en'));
-
-console.log("Campos ordenados por índice:");
-console.log(patientsMainTable.fields);
-
+// Manejar el envío del formulario de creación/edición de campo
 const fieldCreationForm = document.getElementById('fieldCreationForm');
 fieldCreationForm.addEventListener('submit', function (event) {
     event.preventDefault(); // Evita el envío clásico del formulario
     agregarCampo();
 });
 
+// Función para agregar o editar un campo
 function agregarCampo() {
     // Obtener valores del formulario
     const fieldCode = document.getElementById('fieldId').value.trim();
@@ -202,8 +196,6 @@ function agregarCampo() {
         alert('Por favor, complete los campos obligatorios.');
         return;
     }
-
-
 
     // Validar si ya existe un campo con el mismo fieldCode
     if (patientsFieldList.fields[fieldCode]) {
@@ -267,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Botón para abrir el modal en modo agregar campo
     const addFieldBtn = document.getElementById('addFieldBtn');
     if (addFieldBtn) {
-        addFieldBtn.addEventListener('click', function() {
+        addFieldBtn.addEventListener('click', function () {
             setFieldModalMode('add');
         });
     }
@@ -312,6 +304,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
+// Función para guardar los cambios al editar un campo
 function guardarEdicionCampo() {
     if (!editingFieldCode) return;
     // Obtener valores del formulario
@@ -348,12 +341,59 @@ function guardarEdicionCampo() {
         isAdminPrivative,
         isEnabled
     ));
+    // Actualizar la tabla DataTable con todos los campos actuales
     fieldToDatatable(patientsFieldList.fields, tableAddedFields);
+    // Limpiar el formulario
     document.getElementById('fieldCreationForm').reset();
+    // Cerrar el modal
     const modal = bootstrap.Modal.getInstance(document.getElementById('fieldCreationModal'));
     if (modal) modal.hide();
     setFieldModalMode('add');
 }
 
 
+// ***************************************************************
+// *******      Data de ejemplo para "patientsMain"     **********
+// ***************************************************************
 
+
+let primerNombre = new field('primerNombre', 0, 'string', 'Primer Nombre', 'First Name', 50, true, true, true, false, true);
+let segundoNombre = new field('segundoNombre', 1, 'string', 'Segundo Nombre', 'Second Name', 50, false, true, true, false, true);
+let primerApellido = new field('primerApellido', 2, 'string', 'Primer Apellido', 'Last Name', 50, true, true, true, false, true);
+let segundoApellido = new field('segundoApellido', 3, 'string', 'Segundo Apellido', 'Second Last Name', 50, false, true, true, false, true);
+let tipoIdentificacion = new field('tipoIdentificacion', 4, 'string', 'Tipo de Identificación', 'Identification Type', 20, true, true, true, false, true);
+let numeroIdentificacion = new field('numeroIdentificacion', 5, 'string', 'Número de Identificación', 'Identification Number', 20, true, true, true, false, true);
+let fechaNacimiento = new field('fechaNacimiento', 6, 'date', 'Fecha de Nacimiento', 'Date of Birth', null, true, true, true, false, true);
+let entidadResponsable = new field('entidadResponsable', 7, 'string', 'Entidad Responsable', 'Responsible Entity', 100, true, true, true, false, true);
+
+let patientsFieldList = new fieldList();
+patientsFieldList.addFields([primerNombre, segundoNombre, primerApellido, segundoApellido, tipoIdentificacion, numeroIdentificacion, fechaNacimiento, entidadResponsable]);
+
+let patientsMainTable = new dataDocument('patientsMain', 'Pacientes', 'Patients', patientsFieldList.fields, true, true, true);
+
+// Ejemplo de resultado de field structure()
+console.log('Ejemplo de objeto generado por el constructor de field:');
+console.log(entidadResponsable.structure());
+console.log('Objeto en JSON: ' + JSON.stringify(entidadResponsable.structure(), null, 2));
+
+// Ejemplo de resultado de dataDocument structure()
+console.log('Ejemplo de objeto generado por el constructor de dataDocument:');
+console.log(patientsMainTable.structure());
+console.log('Objeto en JSON: ' + JSON.stringify(patientsMainTable.structure(), null, 2));
+
+// Acceder a los datos
+console.log('Descripción ES:', patientsMainTable.tableDescriptionEs);
+console.log('Descripción EN:', patientsMainTable.tableDescriptionEn);
+console.log('Campos:', Object.keys(patientsMainTable.fields));
+console.log('Primer nombre (ES):', patientsMainTable.fields.primerNombre.value('es'));
+console.log('Primer nombre (EN):', patientsMainTable.fields.primerNombre.value('en'));
+
+console.log("Campos ordenados por índice:");
+console.log(patientsMainTable.fields);
+
+
+console.log("Nombre y clave de los campos ordenados:");
+console.log(patientsMainTable.listFieldKeyNames());
+
+// Pasamos los campos iniciales a la tabla DataTable
+fieldToDatatable(patientsMainTable.fields, tableAddedFields);
