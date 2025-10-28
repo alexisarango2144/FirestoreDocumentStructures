@@ -1,4 +1,42 @@
-class dataDocument {
+import { getDocuments } from "./firebase/firebaseCRUD.js";
+import { parseFirestoreData } from "./firebase/firebaseService.js";
+import { sToast } from "./swal.js";
+
+/**
+ * Lee todos los documentos de una colección de Firestore.
+ * @param {string} collectionName El nombre de la colección a leer.
+ * @returns {Array} Un array de objetos JSON de los documentos.
+ */
+export async function readAllDocuments(collectionName) {
+  try {
+    let { docs } = await getDocuments(collectionName);
+    return docs;
+  } catch (e) {
+    sToast('error', 'Error al obtener los documentos', 'Revisa la consola para más detalles.');
+    console.log("Error en readAllDocuments: " + e.message);
+  }
+}
+
+/**
+ * Actualiza un documento específico en Firestore.
+ * @param {object} data Objeto de datos plano con la información a actualizar.
+ * @param {string} collectionName El nombre de la colección.
+ * @param {string} documentId El ID del documento a actualizar.
+ * @returns {object} El documento actualizado.
+ */
+async function updateDocumentInCollection(data, collectionName, documentId) {
+  try {
+    let firestoreData = prepareForFirestore(data);
+    let response = await updateDocument(firestoreData, collectionName, documentId);
+    return response;
+  } catch (e) {
+    Logger.log("Error en updateDocumentInCollection: " + e.message);
+    return { error: "No se pudo actualizar el documento. " + e.message };
+  }
+}
+
+
+export class dataDocument {
     constructor(tableId, tableDescriptionEs, tableDescriptionEn = null, fields = {}, isVisible = true, isAdminPrivative = true, isEnabled = true) {
         this.tableId = tableId;
         this.tableDescriptionEs = tableDescriptionEs;
@@ -11,15 +49,13 @@ class dataDocument {
 
     structure() {
         return {
-            [this.tableId]: {
-                tableDescriptionEs: this.tableDescriptionEs,
-                tableDescriptionEn: this.tableDescriptionEn,
-                fields: this.fields,
-                isVisible: this.isVisible,
-                isAdminPrivative: this.isAdminPrivative,
-                
-                isEnabled: this.isEnabled
-            }
+            tableId: this.tableId,
+            tableDescriptionEs: this.tableDescriptionEs,
+            tableDescriptionEn: this.tableDescriptionEn,
+            fields: this.fields,
+            isVisible: this.isVisible,
+            isAdminPrivative: this.isAdminPrivative,
+            isEnabled: this.isEnabled
         };
     }
 
@@ -37,7 +73,7 @@ class dataDocument {
     }
 }
 
-class field {
+export class field {
     constructor(fieldCode, fieldIndex, fieldDataType, fieldNameEs, fieldNameEn = null, fieldMaxLength = null, isRequired = false, isVisible = true, isEditable = true, isSearchable = false, isAdminPrivative = false, isEnabled = true) {
         this.fieldCode = fieldCode;
         this.index = fieldIndex;
@@ -94,7 +130,7 @@ class field {
     }
 }
 
-class fieldList {
+export class fieldList {
     constructor() {
         this.fields = {};
     }

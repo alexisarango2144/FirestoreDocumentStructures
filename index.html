@@ -6,7 +6,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="author" content="@alexisarango2144">
-  <!-- Daratables CSS and JS -->
+  <!-- Datatables CSS and JS -->
   <link
     href="https://cdn.datatables.net/v/bs5/jq-3.7.0/jszip-3.10.1/dt-2.3.4/b-3.2.5/b-colvis-3.2.5/b-html5-3.2.5/b-print-3.2.5/cr-2.1.1/cc-1.1.0/fh-4.0.3/r-3.0.6/rr-1.5.0/datatables.min.css"
     rel="stylesheet" integrity="sha384-+Mkl3Q+otRuU8TOEvGDa3Pw+NUpY0MXM9vDkfViVh4O2cEt+Up6YjOFPwf9YolfQ"
@@ -31,7 +31,12 @@
     crossorigin="anonymous"></script>
   <!-- Bootstrap icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-  <script src="./js/backend.js"></script>
+
+  <!-- Sweetalert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link rel="stylesheet" href="./sweetalert2/themes/bootstrap-5.css">
+
+  <script type="module" src="./js/backend.js"></script>
   <title>Gestión HC - Ajustes DB</title>
 </head>
 
@@ -72,77 +77,123 @@
   </nav>
 
   <main class="container my-5">
-    <section class="card">
-      <div class="card-header card-title text-center fw-semibold">
-        Crear tabla
+    <div class="row">
+      <div class="col-12 text-center">
+        <h1>Gestor de tablas Firebase</h1>
       </div>
-      <form action="#" id="tableCreation" class="p-4">
-        <div class="row mb-3">
-          <div class="col">
-            <label for="documentId" class="form-label">ID del documeto</label>
-            <input type="text" class="form-control" id="documentId" placeholder="Ej. patientsMain">
-          </div>
-          <div class="col">
-            <div class="row form-check form-switch">
-              <label class="form-check-label" for="tableWebmasterOnly">Es visible</label>
-              <input class="form-check-input" type="checkbox" checked id="tableWebmasterOnly">
-            </div>
-            <div class="row form-check form-switch">
-              <label class="form-check-label" for="tableAdminOnly">Solo de administrador</label>
-              <input class="form-check-input" type="checkbox" value="" id="tableAdminOnly">
-            </div>
-            <div class="row form-check form-switch">
-              <label class="form-check-label" for="tableIsEnabled">Está habilitada</label>
-              <input class="form-check-input" type="checkbox" id="tableIsEnabled">
-            </div>
-          </div>
-        </div>
-        <div class="row mb-4">
-          <div class="col">
-            <label for="tableDescriptionEs" class="form-label">Descripción (ES)</label>
-            <input type="text" class="form-control" id="tableDescriptionEs" placeholder="Ej. Pacientes">
-          </div>
-          <div class="col">
-            <label for="tableDescriptionEn" class="form-label">Description (EN)</label>
-            <input type="text" class="form-control" id="tableDescriptionEn" placeholder="Ej. Patients">
-          </div>
+    </div>
+
+    <!-- Aquí inicia el listado de tablas existentes -->
+    <section class="card my-3">
+      <div class="card-header card-title text-center fw-semibold">
+        Gestión de tablas
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h5 class="mb-0">Tablas existentes</h5>
+          <button type="button" class="btn btn-primary" id="addTableBtn" data-bs-toggle="modal"
+            data-bs-target="#tableCreationModal">
+            <i class="bi bi-plus-lg"></i> Añadir tabla
+          </button>
         </div>
 
-        <div class="row mb-3">
-          <div class="container-fluid">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-              <h5 class="mb-0">Campos</h5>
-              <button type="button" class="btn btn-primary" id="addFieldBtn" data-bs-toggle="modal"
-                data-bs-target="#fieldCreationModal">
-                <i class="bi bi-plus-lg"></i> Añadir campo
-              </button>
-            </div>
-            <div id="fieldsContainer">
-              <!-- Los campos se añadirán aquí dinámicamente -->
-              <table class="table table-bordered" id="tableAddedFields">
-                <thead>
-                  <tr>
-                    <th scope="col">Index</th>
-                    <th scope="col">ID</th>
-                    <th scope="col">Tipo</th>
-                    <th scope="col">Descripción (ES)</th>
-                    <th scope="col">Visible</th>
-                    <th scope="col">Editable</th>
-                    <th scope="col">Buscable</th>
-                    <th scope="col">Solo Admin</th>
-                    <th scope="col">Habilitado</th>
-                    <th scope="col">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody id="fieldsTableBody">
-                  <!-- Filas de campos se añadirán aquí -->
-                </tbody>
-              </table>
-            </div>
+        <div class="table-responsive">
+          <table class="table table-bordered table-striped" id="createdDisplayTables">
+            <thead>
+              <tr>
+                <th>ID de la tabla</th>
+                <th>Descripción (ES)</th>
+                <th>Description (EN)</th>
+                <th>Visible</th>
+                <th>Solo admin</th>
+                <th>Habilitada</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Las filas de las tablas se añadirán aquí dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    <!-- Aquí finaliza el listado de tablas existentes -->
+
+    <!-- Modal de creación de tablas -->
+    <div class="modal fade modal-xl" id="tableCreationModal" data-bs-backdrop="static" data-bs-keyboard="false"
+      tabindex="-1" aria-labelledby="tableCreationModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="tableCreationModalLabel">Crear tabla</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="tableCreation" class="p-4">
+              <div class="row mb-3">
+                <div class="col">
+                  <label for="tableId" class="form-label">ID de la tabla</label>
+                  <input type="text" class="form-control" id="tableId" placeholder="Ej. patientsMain">
+                </div>
+                <div class="col">
+                  <div class="row form-check form-switch">
+                    <label class="form-check-label" for="tableIsVisible">Es visible</label>
+                    <input class="form-check-input" type="checkbox" checked id="tableIsVisible">
+                  </div>
+                  <div class="row form-check form-switch">
+                    <label class="form-check-label" for="tableIsAdminPrivative">Solo de administrador</label>
+                    <input class="form-check-input" type="checkbox" value="" id="tableIsAdminPrivative">
+                  </div>
+                  <div class="row form-check form-switch">
+                    <label class="form-check-label" for="tableIsEnabled">Está habilitada</label>
+                    <input class="form-check-input" type="checkbox" id="tableIsEnabled">
+                  </div>
+                </div>
+              </div>
+              <div class="row mb-4">
+                <div class="col">
+                  <label for="tableDescriptionEs" class="form-label">Descripción (ES)</label>
+                  <input type="text" class="form-control" id="tableDescriptionEs" placeholder="Ej. Pacientes">
+                </div>
+                <div class="col">
+                  <label for="tableDescriptionEn" class="form-label">Description (EN)</label>
+                  <input type="text" class="form-control" id="tableDescriptionEn" placeholder="Ej. Patients">
+                </div>
+              </div>
+
+              <div class="row mb-3">
+                <div class="container-fluid">
+                  <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="mb-0">Campos</h5>
+                    <button type="button" class="btn btn-primary" id="addFieldBtn" data-bs-toggle="modal"
+                      data-bs-target="#fieldCreationModal">
+                      <i class="bi bi-plus-lg"></i> Añadir campo
+                    </button>
+                  </div>
+                  <div id="fieldsContainer">
+                    <!-- Los campos se añadirán aquí dinámicamente -->
+                    <table class="table table-bordered" id="tableAddedFields">
+                      <thead>
+                        <!-- Los encabezados de la tabla se añadirán aquí -->
+                      </thead>
+                      <tbody id="fieldsTableBody">
+                        <!-- Las filas de los campos se añadirán aquí -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-target="#tableCreationModal"
+              data-bs-toggle="modal">Cancelar</button>
+            <!-- Los demás botones se crearán desde JS -->
           </div>
         </div>
-      </form>
-    </section>
+      </div>
+    </div>
+
     <!-- Modal de creación de campos -->
     <div class="modal fade modal-xl" id="fieldCreationModal" data-bs-backdrop="static" data-bs-keyboard="false"
       tabindex="-1" aria-labelledby="fieldCreationModalLabel" aria-hidden="true">
@@ -220,10 +271,9 @@
                 </div>
               </div>
               <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                <!-- Probamos crear el botón desde JS -->
-                <!-- <button type="button" id="btnCrearCampo" class="btn btn-primary">Crear campo</button>
-                <button type="button" id="btnActualizarCampo" class="btn btn-success d-none">Actualizar campo</button> -->
+                <button type="button" class="btn btn-secondary" data-bs-target="#tableCreationModal"
+                  data-bs-toggle="modal">Cancelar</button>
+                <!-- Los demás botones se crearán desde JS -->
               </div>
             </form>
           </div>
@@ -252,7 +302,7 @@
     </div>
   </main>
 
-  <script src="./js/app.js"></script>
+  <script type="module" src="./js/app.js"></script>
   <script>
 
   </script>

@@ -1,12 +1,55 @@
-// Abrir el modal de creación de campo al cargar la página en modo agregar
-window.addEventListener('DOMContentLoaded', function () {
-    tableAddedFields.clear();
-    fieldToDatatable(patientsFieldList.fields, tableAddedFields);
-    setFieldModalMode('add');
-    const fieldCreationModal = new bootstrap.Modal(document.getElementById('fieldCreationModal'));
-    fieldCreationModal.show();
+import { sAlert, sToast } from "./swal.js"; // Importar la función salert desde swal.js
+import { dataDocument, field, fieldList, readAllDocuments } from "./backend.js"; // Importar las clases desde backend.js
+import {getDocuments, createDocument} from "./firebase/firebaseCRUD.js";
+import { validarBotonesFormularios, agregarCampo } from "./formularios.js";
+
+validarBotonesFormularios();
+
+// Obtenemos los datos de la base de datos
+const dataDisplayTables = await readAllDocuments('displayTables');
+const displayTablesDataRows = dataDisplayTables.map(doc => [
+    doc.tableId,                  
+    doc.tableDescriptionEs,          
+    doc.tableDescriptionEn,          
+    doc.isVisible ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
+    doc.isAdminPrivative ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
+    doc.isEnabled ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
+    `<button class="btn btn-sm btn-success btn-editTable" data-id="${doc.documentId}"><i class="bi bi-pencil-square"></i></button> <button class="btn btn-sm btn-danger btn-deleteTable" data-id="${doc.documentId}"><i class="bi bi-trash3-fill"></i></button>`
+]);
+
+// Inicialización y configuración de DataTables
+const createdDisplayTables = new DataTable('#createdDisplayTables', {
+    layout: {
+        topStart: null,
+        topEnd: {
+            search: {
+                placeholder: 'Buscar aquí'
+            }
+        },
+        bottomStart: null,
+        bottom: ['pageLength', 'info', 'paging'],
+        bottomEnd: null
+    },
+    responsive: true,
+    paging: true,
+    language: {
+        url: './datatables/es-ES.json',
+    },
+    data: displayTablesDataRows,
+    columns: [
+        { title: 'ID de la tabla' },
+        { title: 'Descripción (ES)' },
+        { title: 'Description (EN)' },
+        { title: 'Visible' },
+        { title: 'Solo admin' },
+        { title: 'Habilitada' },
+        { title: 'Acciones' }
+    ],
+    columnDefs: [
+        // Centrar las columnas de checkboxes y acciones
+        { className: "dt-center", targets: [3, 4, 5, 6] }
+    ]
 });
- 
 
 const tableAddedFields = new DataTable('#tableAddedFields', {
     layout: {
@@ -49,24 +92,107 @@ const tableAddedFields = new DataTable('#tableAddedFields', {
 tableAddedFields.on('row-reorder', function (e, details) {
     if (!details.length) return;
 
-    //Evaluamos los cambios provistos en 'details'.
+    // Se modifican los índices en el objeto fieldList y se actualiza la tabla sin recargar todo
     details.forEach(change => {
-        // Obtenemos los datos de la fila que fue movida.
-        // change.node es el elemento que se movió.
         const rowData = tableAddedFields.row(change.node).data();
-        
-        // Asignamos el ID del campo (fieldCode) que está en la columna 1.
         const fieldCode = rowData[1];
-        
-        // Asignamos la nueva posición al índice del campo.
-        if (patientsFieldList.fields[fieldCode]) {
-            // Asigna el nuevo valor de details.newPosition a .index
-            patientsFieldList.fields[fieldCode].index = change.newPosition;
+        const fieldObj = patientsFieldList.fields[fieldCode];
+        if (fieldObj) {
+            // Actualiza el índice en el objeto
+            fieldObj.index = change.newPosition;
+
+            // Actualiza la fila en la tabla
+            tableAddedFields.row(change.node).data([
+                fieldObj.index,
+                fieldObj.fieldCode,
+                fieldObj.fieldDataType,
+                fieldObj.fieldNameEs,
+                fieldObj.isVisible ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
+                fieldObj.isEditable ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
+                fieldObj.isSearchable ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
+                fieldObj.isAdminPrivative ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
+                fieldObj.isEnabled ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
+                `<button class="btn btn-sm btn-success btn-editField" data-id="${fieldObj.fieldCode}"><i class="bi bi-pencil-square"></i></button> <button class="btn btn-sm btn-danger btn-deleteField" data-id="${fieldObj.fieldCode}"><i class="bi bi-trash3-fill"></i></button>`
+            ]);
         }
     });
+    tableAddedFields.draw(false);
+    sToast('success', 'Índices actualizados', 'Los índices de los campos han sido actualizados correctamente.');
+});
 
-    // Refrescar la tabla para mostrar los nuevos índices
-    fieldToDatatable(patientsFieldList.fields, tableAddedFields);
+// Configuración de eventos
+document.addEventListener('DOMContentLoaded', function () {
+    setFieldModalMode('add');
+    const fieldCreationModal = new bootstrap.Modal(document.getElementById('fieldCreationModal'));
+    fieldCreationModal.show();
+
+    // Almacenar el formulario de creación de campo
+    const fieldCreationForm = document.getElementById('fieldCreationForm');
+
+    // Botón para abrir el modal en modo agregar campo
+    const addFieldBtn = document.getElementById('addFieldBtn');
+    if (addFieldBtn) {
+        addFieldBtn.addEventListener('click', function () {
+            setFieldModalMode('add');
+        });
+    }
+
+    // Delegación de eventos para los botones de edición de campo y tabla
+    document.getElementById('tableAddedFields').addEventListener('click', function (e) {
+        if (e.target.closest('.btn-editField')) {
+            const fieldCode = e.target.closest('.btn-editField').getAttribute('data-id');
+            const fieldObj = patientsFieldList.fields[fieldCode];
+            if (fieldObj) {
+                setFieldModalMode('edit', fieldObj);
+                var modal = new bootstrap.Modal(document.getElementById('fieldCreationModal'));
+                modal.show();
+            }
+        }
+        // Delegación de eventos para los botones de eliminación de campo
+        if (e.target.closest('.btn-deleteField')) {
+            const fieldCode = e.target.closest('.btn-deleteField').getAttribute('data-id');
+            const fieldObj = patientsFieldList.fields[fieldCode];
+            if (fieldObj) {
+                console.log('Eliminar campo:', fieldObj);
+                patientsFieldList.removeField(fieldCode);
+                fieldToDatatable(patientsFieldList.fields, tableAddedFields);
+                tableAddedFields.draw();
+               // TODO: 
+               // Agregar confirmación antes de eliminar
+               // Usaremos la librería SweetAlert2
+               // Reemplazar alert() por SweetAlert2 en todo el proyecto
+            }
+        }
+    });
+    
+    document.getElementById('createdDisplayTables').addEventListener('click', function (e) {
+        if (e.target.closest('.btn-editTable')) {
+            const documentId = e.target.closest('.btn-editTable').getAttribute('data-id');
+            const fieldObj = patientsFieldList.fields[fieldCode];
+            if (fieldObj) {
+                setFieldModalMode('edit', fieldObj);
+                var modal = new bootstrap.Modal(document.getElementById('fieldCreationModal'));
+                modal.show();
+            }
+        }
+        // Delegación de eventos para los botones de eliminación de campo
+        if (e.target.closest('.btn-deleteField')) {
+            const fieldCode = e.target.closest('.btn-deleteField').getAttribute('data-id');
+            const fieldObj = patientsFieldList.fields[fieldCode];
+            if (fieldObj) {
+                console.log('Eliminar campo:', fieldObj);
+                patientsFieldList.removeField(fieldCode);
+                fieldToDatatable(patientsFieldList.fields, tableAddedFields);
+                tableAddedFields.draw();
+               // TODO: 
+               // Agregar confirmación antes de eliminar
+               // Usaremos la librería SweetAlert2
+               // Reemplazar alert() por SweetAlert2 en todo el proyecto
+            }
+        }
+    });
+    
+    
 });
 
 
@@ -80,7 +206,7 @@ function setFieldModalMode(mode, fieldData = null) {
         modalTitle.textContent = 'Agregar campo';
         creationBtn.classList.remove('d-none');
         updateBtn.classList.add('d-none');
-        document.getElementById('fieldCreationForm').reset();
+        fieldCreationForm.reset();
         editingFieldCode = null;
     } else if (mode === 'edit' && fieldData) {
         modalTitle.textContent = 'Modificar campo';
@@ -101,6 +227,39 @@ function setFieldModalMode(mode, fieldData = null) {
         editingFieldCode = fieldData.fieldCode;
     }
 }
+// Alternar entre modo agregar y editar tabla en el modal
+let editingTableCode = null;
+function setTableModalMode(mode, tableData = null) {
+    const modalTitle = document.getElementById('tableCreationModalLabel');
+    const creationBtn = document.getElementById('btnCrearTabla');
+    const updateBtn = document.getElementById('btnActualizarTabla');
+    if (mode === 'add') {
+        modalTitle.textContent = 'Crear tabla';
+        creationBtn.classList.remove('d-none');
+        updateBtn.classList.add('d-none');
+        tableCreationForm.reset();
+        editingTableCode = null;
+    } else if (mode === 'edit' && fieldData) {
+        modalTitle.textContent = 'Editar tabla';
+        creationBtn.classList.add('d-none');
+        updateBtn.classList.remove('d-none');
+        // Llenar los campos del formulario con fieldData
+        document.getElementById('fieldId').value = fieldData.fieldCode;
+        document.getElementById('fieldType').value = fieldData.fieldDataType;
+        document.getElementById('fieldDescriptionEs').value = fieldData.fieldNameEs;
+        document.getElementById('fieldDescriptionEn').value = fieldData.fieldNameEn || '';
+        document.getElementById('fieldMaxLength').value = fieldData.fieldMaxLength || '';
+        document.getElementById('fieldIsRequired').checked = !!fieldData.isRequired;
+        document.getElementById('fieldIsVisible').checked = !!fieldData.isVisible;
+        document.getElementById('fieldIsEditable').checked = !!fieldData.isEditable;
+        document.getElementById('fieldIsSearchable').checked = !!fieldData.isSearchable;
+        document.getElementById('fieldIsAdminOnly').checked = !!fieldData.isAdminPrivative;
+        document.getElementById('fieldIsEnabled').checked = !!fieldData.isEnabled;
+        editingFieldCode = fieldData.fieldCode;
+    }
+}
+
+
 
 // Modal de confirmación Bootstrap para sobrescribir campo duplicado
 let confirmOverwriteCallback = null;
@@ -152,7 +311,10 @@ function fieldToDatatable(fieldsObj, dataTableInstance) {
         console.error('El segundo argumento debe ser una instancia válida de DataTable.');
         return;
     }
-    const data = Object.values(fieldsObj).map(f => [
+    dataTableInstance.clear();
+
+    // Ordenar los campos por índice antes de mapearlos
+    const data = Object.values(fieldsObj).sort((a, b) => (a.index - b.index)).map(f => [
         f.index,
         f.fieldCode,
         f.fieldDataType,
@@ -164,193 +326,15 @@ function fieldToDatatable(fieldsObj, dataTableInstance) {
         f.isEnabled ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
         `<button class="btn btn-sm btn-success btn-editField" data-id="${f.fieldCode}"><i class="bi bi-pencil-square"></i></button> <button class="btn btn-sm btn-danger btn-deleteField" data-id="${f.fieldCode}"><i class="bi bi-trash3-fill"></i></button>`
     ]);
-    dataTableInstance.clear();
     dataTableInstance.rows.add(data);
-    dataTableInstance.draw();
+    //dataTableInstance.draw();
 }
 
 // Manejar el envío del formulario de creación/edición de campo
-const fieldCreationForm = document.getElementById('fieldCreationForm');
 fieldCreationForm.addEventListener('submit', function (event) {
     event.preventDefault(); // Evita el envío clásico del formulario
     agregarCampo();
 });
-
-// Función para agregar o editar un campo
-function agregarCampo() {
-    // Obtener valores del formulario
-    const fieldCode = document.getElementById('fieldId').value.trim();
-    const fieldDataType = document.getElementById('fieldType').value;
-    const fieldNameEs = document.getElementById('fieldDescriptionEs').value.trim();
-    const fieldNameEn = document.getElementById('fieldDescriptionEn').value.trim();
-    const fieldMaxLength = document.getElementById('fieldMaxLength').value ? parseInt(document.getElementById('fieldMaxLength').value) : null;
-    const isRequired = document.getElementById('fieldIsRequired').checked;
-    const isVisible = document.getElementById('fieldIsVisible').checked;
-    const isEditable = document.getElementById('fieldIsEditable').checked;
-    const isSearchable = document.getElementById('fieldIsSearchable').checked;
-    const isAdminPrivative = document.getElementById('fieldIsAdminOnly').checked;
-    const isEnabled = document.getElementById('fieldIsEnabled').checked;
-
-    // Validación básica
-    if (!fieldCode || !fieldDataType || !fieldNameEs) {
-        alert('Por favor, complete los campos obligatorios.');
-        return;
-    }
-
-    // Validar si ya existe un campo con el mismo fieldCode
-    if (patientsFieldList.fields[fieldCode]) {
-        showConfirmOverwriteModal(function () {
-            patientsFieldList.editField(fieldCode, new field(
-                fieldCode,
-                Object.keys(patientsFieldList.fields).indexOf(fieldCode),
-                fieldDataType,
-                fieldNameEs,
-                fieldNameEn,
-                fieldMaxLength,
-                isRequired,
-                isVisible,
-                isEditable,
-                isSearchable,
-                isAdminPrivative,
-                isEnabled
-            ));
-            fieldToDatatable(patientsFieldList.fields, tableAddedFields);
-            document.getElementById('fieldCreationForm').reset();
-            const modal = bootstrap.Modal.getInstance(document.getElementById('fieldCreationModal'));
-            if (modal) modal.hide();
-        });
-        return;
-    } else {
-        // Crear el nuevo campo y agregarlo
-        const nuevoCampo = new field(
-            fieldCode,
-            Object.keys(patientsFieldList.fields).length,
-            fieldDataType,
-            fieldNameEs,
-            fieldNameEn,
-            fieldMaxLength,
-            isRequired,
-            isVisible,
-            isEditable,
-            isSearchable,
-            isAdminPrivative,
-            isEnabled
-        );
-        patientsFieldList.addField(nuevoCampo);
-        // Actualizar la tabla DataTable SOLO aquí, con todos los campos actuales
-        fieldToDatatable(patientsFieldList.fields, tableAddedFields);
-        // Limpiar el formulario
-        document.getElementById('fieldCreationForm').reset();
-        // Cerrar el modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('fieldCreationModal'));
-        if (modal) modal.hide();
-    }
-
-    // Limpiar el formulario
-    document.getElementById('fieldCreationForm').reset();
-
-    // Cerrar el modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('fieldCreationModal'));
-    if (modal) modal.hide();
-}
-
-// Asignar eventos a los botones del modal y a los botones de edición de campo
-document.addEventListener('DOMContentLoaded', function () {
-    // Botón para abrir el modal en modo agregar campo
-    const addFieldBtn = document.getElementById('addFieldBtn');
-    if (addFieldBtn) {
-        addFieldBtn.addEventListener('click', function () {
-            setFieldModalMode('add');
-        });
-    }
-    // Botón para crear un nuevo campo
-    let creationBtn = document.getElementById('btnCrearCampo');
-    if (!creationBtn) {
-        creationBtn = document.createElement('button');
-        creationBtn.type = 'button';
-        creationBtn.className = 'btn btn-primary';
-        creationBtn.id = 'btnCrearCampo';
-        creationBtn.textContent = 'Crear campo';
-        creationBtn.style.marginRight = '8px';
-        const footer = document.querySelector('#fieldCreationModal .modal-footer');
-        footer.appendChild(creationBtn);
-    }
-    creationBtn.onclick = agregarCampo;
-
-    // Botón para actualizar cambios en un campo existente
-    let updateBtn = document.getElementById('btnActualizarCampo');
-    if (!updateBtn) {
-        updateBtn = document.createElement('button');
-        updateBtn.type = 'button';
-        updateBtn.className = 'btn btn-success';
-        updateBtn.id = 'btnActualizarCampo';
-        updateBtn.textContent = 'Guardar cambios';
-        const footer = document.querySelector('#fieldCreationModal .modal-footer');
-        footer.appendChild(updateBtn, footer.firstChild.nextSibling);
-    }
-    updateBtn.onclick = guardarEdicionCampo;
-
-    // Delegación de eventos para los botones de edición de campo
-    document.getElementById('tableAddedFields').addEventListener('click', function (e) {
-        if (e.target.closest('.btn-editField')) {
-            const fieldCode = e.target.closest('.btn-editField').getAttribute('data-id');
-            const fieldObj = patientsFieldList.fields[fieldCode];
-            if (fieldObj) {
-                setFieldModalMode('edit', fieldObj);
-                var modal = new bootstrap.Modal(document.getElementById('fieldCreationModal'));
-                modal.show();
-            }
-        }
-    });
-});
-
-// Función para guardar los cambios al editar un campo
-function guardarEdicionCampo() {
-    if (!editingFieldCode) return;
-    // Obtener valores del formulario
-    const fieldCode = document.getElementById('fieldId').value.trim();
-    const fieldDataType = document.getElementById('fieldType').value;
-    const fieldNameEs = document.getElementById('fieldDescriptionEs').value.trim();
-    const fieldNameEn = document.getElementById('fieldDescriptionEn').value.trim();
-    const fieldMaxLength = document.getElementById('fieldMaxLength').value ? parseInt(document.getElementById('fieldMaxLength').value) : null;
-    const isRequired = document.getElementById('fieldIsRequired').checked;
-    const isVisible = document.getElementById('fieldIsVisible').checked;
-    const isEditable = document.getElementById('fieldIsEditable').checked;
-    const isSearchable = document.getElementById('fieldIsSearchable').checked;
-    const isAdminPrivative = document.getElementById('fieldIsAdminOnly').checked;
-    const isEnabled = document.getElementById('fieldIsEnabled').checked;
-
-    // Validación básica
-    if (!fieldCode || !fieldDataType || !fieldNameEs) {
-        alert('Por favor, complete los campos obligatorios.');
-        return;
-    }
-
-    // Actualizar el campo existente
-    patientsFieldList.editField(editingFieldCode, new field(
-        fieldCode,
-        Object.keys(patientsFieldList.fields).indexOf(editingFieldCode),
-        fieldDataType,
-        fieldNameEs,
-        fieldNameEn,
-        fieldMaxLength,
-        isRequired,
-        isVisible,
-        isEditable,
-        isSearchable,
-        isAdminPrivative,
-        isEnabled
-    ));
-    // Actualizar la tabla DataTable con todos los campos actuales
-    fieldToDatatable(patientsFieldList.fields, tableAddedFields);
-    // Limpiar el formulario
-    document.getElementById('fieldCreationForm').reset();
-    // Cerrar el modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('fieldCreationModal'));
-    if (modal) modal.hide();
-    setFieldModalMode('add');
-}
-
 
 // ***************************************************************
 // *******      Data de ejemplo para "patientsMain"     **********
@@ -397,3 +381,37 @@ console.log(patientsMainTable.listFieldKeyNames());
 
 // Pasamos los campos iniciales a la tabla DataTable
 fieldToDatatable(patientsMainTable.fields, tableAddedFields);
+
+let data = await getDocuments('displayTables');
+console.log("Obtenido desde firestore:");
+console.log(JSON.stringify(data));
+
+
+
+const docs = response.docs;
+
+// Mapea cada doc a un array donde cada elemento es una celda
+const dataRows = docs.map(doc => [
+    doc.documentId,                  // ID del documento
+    doc.tableDescriptionEs,          // Descripción (ES)
+    doc.tableDescriptionEn,          // Description (EN)
+    doc.isVisible ? 'Sí' : 'No',     // Visible
+    doc.isAdminPrivative ? 'Sí' : 'No', // Solo admin
+    doc.isEnabled ? 'Sí' : 'No',     // Habilitada
+    `<button class="btn btn-primary btn-sm" data-id="${doc.documentId}">Editar</button>`
+]);
+
+// Inicializa el DataTable (si no se ha hecho antes), o usa clear() y rows.add() si ya existe.
+$('#existingTablesTable').DataTable({
+    destroy: true, // Para garantizar reinicio limpio si reutilizas el mismo id
+    data: dataRows,
+    columns: [
+        { title: 'ID del documento' },
+        { title: 'Descripción (ES)' },
+        { title: 'Description (EN)' },
+        { title: 'Visible' },
+        { title: 'Solo admin' },
+        { title: 'Habilitada' },
+        { title: 'Acciones' }
+    ]
+});
