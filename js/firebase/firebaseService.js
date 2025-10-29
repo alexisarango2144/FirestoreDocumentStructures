@@ -9,19 +9,22 @@ let authVariables = null;
  */
 
 async function getAccessToken() {
-    // Validamos si el token existe en caché y lo retornamos
-    // Comprobar token en caché junto a su expiry
-    const cachedToken = localStorage.getItem('fsAccessToken');
-    const cachedExpiry = localStorage.getItem('fsAccessTokenExpiry');
-    // Si tenemos token válido en caché y ya cargamos las variables de auth, lo retornamos
-    if (cachedToken && cachedExpiry && Date.now() < parseInt(cachedExpiry, 10) && authVariables) {
-        return cachedToken; // es un string con el access_token
-    }
-
-
-    // Pedimos la clave de cifrado al usuario con un modal de SweetAlert2.
+    
     try {
+        // Verificamos si ya tenemos un token válido en localStorage
+        // Comprobar token en caché junto a su expiry
+        const cachedProjectId = localStorage.getItem('fsProjectId');
+        const cachedToken = localStorage.getItem('fsAccessToken');
+        const cachedExpiry = localStorage.getItem('fsAccessTokenExpiry');
+        // Si tenemos token válido en caché y ya cargamos las variables de auth, lo retornamos
+        if (cachedToken && cachedExpiry && Date.now() < parseInt(cachedExpiry, 10) && cachedProjectId) {
+            authVariables = { PROJECT_ID: cachedProjectId };
+            return cachedToken; // es un string con el access_token
+        }
+
+        // De lo contrario pedimos la clave de cifrado al usuario con un modal de SweetAlert2.
         const result = await Swal.fire({
+            theme: 'bootstrap-5',
             title: "Digite la clave de cifrado para validar el acceso a Firebase",
             input: "password",
             inputAttributes: {
@@ -47,7 +50,9 @@ async function getAccessToken() {
                     }
                     return response;
                 } catch (error) {
-                    Swal.showValidationMessage('Error al descifrar las variables');
+                    // Mostrar el mensaje de error real devuelto por obtenerAuthVariables
+                    const message = (error && error.message) ? error.message : 'Error al descifrar las variables';
+                    Swal.showValidationMessage(message);
                     return null;
                 }
             },
@@ -64,11 +69,12 @@ async function getAccessToken() {
 
         // Guardamos las variables en el scope del módulo para que firestoreRequest las use
         authVariables = result.value;
+
         sAlert('success', 'Autenticación exitosa', 'Se ha validado el acceso a Firebase correctamente.');
-    } catch (err) {
+    } catch (e) {
         // Si hubo cualquier error durante la autenticación, mostramos alerta y propagamos
-        sAlert('error', 'Error de autenticación', err.message || 'No se pudo validar el acceso a Firebase.');
-        throw err;
+        sAlert('error', 'Error de autenticación', e.message || 'No se pudo validar el acceso a Firebase.');
+        throw e;
     }
 
     // De lo contrario se genera y se retorna
@@ -103,13 +109,13 @@ async function getAccessToken() {
         const expiresIn = token.expires_in || 3600; // segundos
         const expiryTs = Date.now() + (expiresIn * 1000) - (5 * 60 * 1000); // restamos 5 minutos de margen
 
+        localStorage.setItem('fsProjectId', authVariables.PROJECT_ID);
         localStorage.setItem('fsAccessToken', accessToken);
         localStorage.setItem('fsAccessTokenExpiry', String(expiryTs));
 
         return accessToken;
     } catch (error) {
         sToast('error', 'Error obteniendo access token', 'No se pudo obtener el token de acceso a Firebase. Ver consola para más detalles.');
-        console.error('Error obteniendo access token:', error);
         throw error;
     }
 }

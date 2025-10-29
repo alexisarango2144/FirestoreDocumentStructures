@@ -3,125 +3,28 @@ import { dataDocument, field, fieldList, readAllDocuments } from "./backend.js";
 import {getDocuments, createDocument} from "./firebase/firebaseCRUD.js";
 import { validarBotonesFormularios, agregarCampo } from "./formularios.js";
 
-validarBotonesFormularios();
+let editingTableCode = null;
+let editingFieldCode = null;
+const currentTable = {};
+const currentField = {};
 
-// Obtenemos los datos de la base de datos
-const dataDisplayTables = await readAllDocuments('displayTables');
-const displayTablesDataRows = dataDisplayTables.map(doc => [
-    doc.tableId,                  
-    doc.tableDescriptionEs,          
-    doc.tableDescriptionEn,          
-    doc.isVisible ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
-    doc.isAdminPrivative ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
-    doc.isEnabled ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
-    `<button class="btn btn-sm btn-success btn-editTable" data-id="${doc.documentId}"><i class="bi bi-pencil-square"></i></button> <button class="btn btn-sm btn-danger btn-deleteTable" data-id="${doc.documentId}"><i class="bi bi-trash3-fill"></i></button>`
-]);
-
-// Inicialización y configuración de DataTables
-const createdDisplayTables = new DataTable('#createdDisplayTables', {
-    layout: {
-        topStart: null,
-        topEnd: {
-            search: {
-                placeholder: 'Buscar aquí'
-            }
-        },
-        bottomStart: null,
-        bottom: ['pageLength', 'info', 'paging'],
-        bottomEnd: null
-    },
-    responsive: true,
-    paging: true,
-    language: {
-        url: './datatables/es-ES.json',
-    },
-    data: displayTablesDataRows,
-    columns: [
-        { title: 'ID de la tabla' },
-        { title: 'Descripción (ES)' },
-        { title: 'Description (EN)' },
-        { title: 'Visible' },
-        { title: 'Solo admin' },
-        { title: 'Habilitada' },
-        { title: 'Acciones' }
-    ],
-    columnDefs: [
-        // Centrar las columnas de checkboxes y acciones
-        { className: "dt-center", targets: [3, 4, 5, 6] }
-    ]
-});
-
-const tableAddedFields = new DataTable('#tableAddedFields', {
-    layout: {
-        topStart: null,
-        topEnd: {
-            search: {
-                placeholder: 'Buscar aquí'
-            }
-        },
-        bottomStart: null,
-        bottom: ['pageLength', 'info', 'paging'],
-        bottomEnd: null
-    },
-    responsive: true,
-    paging: true,
-    rowReorder: {
-        dataSrc: '0'
-    },
-    language: {
-        url: './datatables/es-ES.json',
-    },
-    columns: [
-        { title: "Index" },
-        { title: "ID" },
-        { title: "Tipo" },
-        { title: "Descripción (ES)" },
-        { title: "Visible", sortable: false, searchable: false },
-        { title: "Editable", sortable: false, searchable: false },
-        { title: "Buscable" },
-        { title: "Solo Admin", sortable: false, searchable: false },
-        { title: "Habilitado", sortable: false, searchable: false },
-        { title: "Acciones", sortable: false, searchable: false }
-    ],
-    columnDefs: [
-        // Centrar las columnas de checkboxes y acciones
-        { className: "dt-center", targets: [0, 4, 5, 6, 7, 8, 9] }
-    ]
-});
-
-tableAddedFields.on('row-reorder', function (e, details) {
-    if (!details.length) return;
-
-    // Se modifican los índices en el objeto fieldList y se actualiza la tabla sin recargar todo
-    details.forEach(change => {
-        const rowData = tableAddedFields.row(change.node).data();
-        const fieldCode = rowData[1];
-        const fieldObj = patientsFieldList.fields[fieldCode];
-        if (fieldObj) {
-            // Actualiza el índice en el objeto
-            fieldObj.index = change.newPosition;
-
-            // Actualiza la fila en la tabla
-            tableAddedFields.row(change.node).data([
-                fieldObj.index,
-                fieldObj.fieldCode,
-                fieldObj.fieldDataType,
-                fieldObj.fieldNameEs,
-                fieldObj.isVisible ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
-                fieldObj.isEditable ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
-                fieldObj.isSearchable ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
-                fieldObj.isAdminPrivative ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
-                fieldObj.isEnabled ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
-                `<button class="btn btn-sm btn-success btn-editField" data-id="${fieldObj.fieldCode}"><i class="bi bi-pencil-square"></i></button> <button class="btn btn-sm btn-danger btn-deleteField" data-id="${fieldObj.fieldCode}"><i class="bi bi-trash3-fill"></i></button>`
-            ]);
+// Función para ejecutar una función cuando el DOM esté completamente cargado
+function runOnDomReady(fn) {
+    try {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', fn);
+        } else {
+            // Si ya cargó se ejecuta inmediatamente
+            fn();
         }
-    });
-    tableAddedFields.draw(false);
-    sToast('success', 'Índices actualizados', 'Los índices de los campos han sido actualizados correctamente.');
-});
+    } catch (e) {
+        console.error('Error registrando DOM ready handler:', e);
+    }
+}
 
-// Configuración de eventos
-document.addEventListener('DOMContentLoaded', function () {
+runOnDomReady(function () {
+    // Cuando el DOM esté listo, inicializamos la UI, eventos y variables
+    validarBotonesFormularios();
     setFieldModalMode('add');
     const fieldCreationModal = new bootstrap.Modal(document.getElementById('fieldCreationModal'));
     fieldCreationModal.show();
@@ -129,11 +32,18 @@ document.addEventListener('DOMContentLoaded', function () {
     // Almacenar el formulario de creación de campo
     const fieldCreationForm = document.getElementById('fieldCreationForm');
 
-    // Botón para abrir el modal en modo agregar campo
+    // Botón para abrir el modal de campos en modo agregar
     const addFieldBtn = document.getElementById('addFieldBtn');
     if (addFieldBtn) {
         addFieldBtn.addEventListener('click', function () {
             setFieldModalMode('add');
+        });
+    }
+    // Botón para abrir el modal de tablas en modo agregar
+    const addTableBtn = document.getElementById('addTableBtn');
+    if (addTableBtn) {
+        addTableBtn.addEventListener('click', function () {
+            setTableModalMode('add');
         });
     }
 
@@ -191,13 +101,126 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     });
-    
-    
 });
 
+// Obtenemos los datos de la base de datos
+const dataDisplayTables = await readAllDocuments('displayTables');
+const displayTablesDataRows = dataDisplayTables.map(doc => [
+    doc.tableId,                  
+    doc.tableDescriptionEs,          
+    doc.tableDescriptionEn,          
+    doc.isVisible ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
+    doc.isAdminPrivative ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
+    doc.isEnabled ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
+    `<button class="btn btn-sm btn-success btn-editTable" data-id="${doc.documentId}"><i class="bi bi-pencil-square"></i></button> <button class="btn btn-sm btn-danger btn-deleteTable" data-id="${doc.documentId}"><i class="bi bi-trash3-fill"></i></button>`
+]);
+
+const tableAddedFieldsDataRows = {};
+
+// Inicialización y configuración de DataTables
+const createdDisplayTables = new DataTable('#createdDisplayTables', {
+    layout: {
+        topStart: null,
+        topEnd: {
+            search: {
+                placeholder: 'Buscar aquí'
+            }
+        },
+        bottomStart: null,
+        bottom: ['pageLength', 'info', 'paging'],
+        bottomEnd: null
+    },
+    responsive: true,
+    paging: true,
+    language: {
+        url: './datatables/es-ES.json',
+    },
+    data: displayTablesDataRows,
+    columns: [
+        { title: 'ID de la tabla' },
+        { title: 'Descripción (ES)' },
+        { title: 'Description (EN)' },
+        { title: 'Visible' },
+        { title: 'Solo admin' },
+        { title: 'Habilitada' },
+        { title: 'Acciones' }
+    ],
+    columnDefs: [
+        // Centrar las columnas de checkboxes y acciones
+        { className: "dt-center", targets: [3, 4, 5, 6] }
+    ]
+});
+
+const tableAddedFields = new DataTable('#tableAddedFields', {
+    layout: {
+        topStart: null,
+        topEnd: {
+            search: {
+                placeholder: 'Buscar aquí'
+            }
+        },
+        bottomStart: null,
+        bottom: ['pageLength', 'info', 'paging'],
+        bottomEnd: null
+    },
+    responsive: true,
+    paging: true,
+    rowReorder: {
+        dataSrc: tableAddedFieldsDataRows
+    },
+    language: {
+        url: './datatables/es-ES.json',
+    },
+    columns: [
+        { title: "Index" },
+        { title: "ID" },
+        { title: "Tipo" },
+        { title: "Descripción (ES)" },
+        { title: "Visible", sortable: false, searchable: false },
+        { title: "Editable", sortable: false, searchable: false },
+        { title: "Buscable" },
+        { title: "Solo Admin", sortable: false, searchable: false },
+        { title: "Habilitado", sortable: false, searchable: false },
+        { title: "Acciones", sortable: false, searchable: false }
+    ],
+    columnDefs: [
+        // Centrar las columnas de checkboxes y acciones
+        { className: "dt-center", targets: [0, 4, 5, 6, 7, 8, 9] }
+    ]
+});
+
+tableAddedFields.on('row-reorder', function (e, details) {
+    if (!details.length) return;
+
+    // Se modifican los índices en el objeto fieldList y se actualiza la tabla sin recargar todo
+    details.forEach(change => {
+        const rowData = tableAddedFields.row(change.node).data();
+        const fieldCode = rowData[1];
+        const fieldObj = patientsFieldList.fields[fieldCode];
+        if (fieldObj) {
+            // Actualiza el índice en el objeto
+            fieldObj.index = change.newPosition;
+
+            // Actualiza la fila en la tabla
+            tableAddedFields.row(change.node).data([
+                fieldObj.index,
+                fieldObj.fieldCode,
+                fieldObj.fieldDataType,
+                fieldObj.fieldNameEs,
+                fieldObj.isVisible ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
+                fieldObj.isEditable ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
+                fieldObj.isSearchable ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
+                fieldObj.isAdminPrivative ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
+                fieldObj.isEnabled ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
+                `<button class="btn btn-sm btn-success btn-editField" data-id="${fieldObj.fieldCode}"><i class="bi bi-pencil-square"></i></button> <button class="btn btn-sm btn-danger btn-deleteField" data-id="${fieldObj.fieldCode}"><i class="bi bi-trash3-fill"></i></button>`
+            ]);
+        }
+    });
+    tableAddedFields.draw(false);
+    sToast('success', 'Índices actualizados', 'Los índices de los campos han sido actualizados correctamente.');
+});
 
 // Alternar entre modo agregar y editar campo en el modal
-let editingFieldCode = null;
 function setFieldModalMode(mode, fieldData = null) {
     const modalTitle = document.getElementById('fieldCreationModalLabel');
     const creationBtn = document.getElementById('btnCrearCampo');
@@ -228,7 +251,6 @@ function setFieldModalMode(mode, fieldData = null) {
     }
 }
 // Alternar entre modo agregar y editar tabla en el modal
-let editingTableCode = null;
 function setTableModalMode(mode, tableData = null) {
     const modalTitle = document.getElementById('tableCreationModalLabel');
     const creationBtn = document.getElementById('btnCrearTabla');
@@ -334,60 +356,12 @@ function fieldToDatatable(fieldsObj, dataTableInstance) {
 fieldCreationForm.addEventListener('submit', function (event) {
     event.preventDefault(); // Evita el envío clásico del formulario
     agregarCampo();
-});
-
-// ***************************************************************
-// *******      Data de ejemplo para "patientsMain"     **********
-// ***************************************************************
-
-
-let primerNombre = new field('primerNombre', 0, 'string', 'Primer Nombre', 'First Name', 50, true, true, true, false, true);
-let segundoNombre = new field('segundoNombre', 1, 'string', 'Segundo Nombre', 'Second Name', 50, false, true, true, false, true);
-let primerApellido = new field('primerApellido', 2, 'string', 'Primer Apellido', 'Last Name', 50, true, true, true, false, true);
-let segundoApellido = new field('segundoApellido', 3, 'string', 'Segundo Apellido', 'Second Last Name', 50, false, true, true, false, true);
-let tipoIdentificacion = new field('tipoIdentificacion', 4, 'string', 'Tipo de Identificación', 'Identification Type', 20, true, true, true, false, true);
-let numeroIdentificacion = new field('numeroIdentificacion', 5, 'string', 'Número de Identificación', 'Identification Number', 20, true, true, true, false, true);
-let fechaNacimiento = new field('fechaNacimiento', 6, 'date', 'Fecha de Nacimiento', 'Date of Birth', null, true, true, true, false, true);
-let entidadResponsable = new field('entidadResponsable', 7, 'string', 'Entidad Responsable', 'Responsible Entity', 100, true, true, true, false, true);
-
-let patientsFieldList = new fieldList();
-patientsFieldList.addFields([primerNombre, segundoNombre, primerApellido, segundoApellido, tipoIdentificacion, numeroIdentificacion, fechaNacimiento, entidadResponsable]);
-
-let patientsMainTable = new dataDocument('patientsMain', 'Pacientes', 'Patients', patientsFieldList.fields, true, true, true);
-
-// Ejemplo de resultado de field structure()
-console.log('Ejemplo de objeto generado por el constructor de field:');
-console.log(entidadResponsable.structure());
-console.log('Objeto en JSON: ' + JSON.stringify(entidadResponsable.structure(), null, 2));
-
-// Ejemplo de resultado de dataDocument structure()
-console.log('Ejemplo de objeto generado por el constructor de dataDocument:');
-console.log(patientsMainTable.structure());
-console.log('Objeto en JSON: ' + JSON.stringify(patientsMainTable.structure(), null, 2));
-
-// Acceder a los datos
-console.log('Descripción ES:', patientsMainTable.tableDescriptionEs);
-console.log('Descripción EN:', patientsMainTable.tableDescriptionEn);
-console.log('Campos:', Object.keys(patientsMainTable.fields));
-console.log('Primer nombre (ES):', patientsMainTable.fields.primerNombre.value('es'));
-console.log('Primer nombre (EN):', patientsMainTable.fields.primerNombre.value('en'));
-
-console.log("Campos ordenados por índice:");
-console.log(patientsMainTable.fields);
-
-
-console.log("Nombre y clave de los campos ordenados:");
-console.log(patientsMainTable.listFieldKeyNames());
+})
 
 // Pasamos los campos iniciales a la tabla DataTable
-fieldToDatatable(patientsMainTable.fields, tableAddedFields);
+// fieldToDatatable(patientsMainTable.fields, tableAddedFields);
 
-let data = await getDocuments('displayTables');
-console.log("Obtenido desde firestore:");
-console.log(JSON.stringify(data));
-
-
-
+let response = await getDocuments('displayTables');
 const docs = response.docs;
 
 // Mapea cada doc a un array donde cada elemento es una celda

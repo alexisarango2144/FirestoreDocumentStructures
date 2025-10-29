@@ -51,7 +51,7 @@ export function sAlert(type, title, content = null, confirmText = 'Ok', cancelTe
 }
 
 
-export function sToast(type, title, content = null, timer = 3000, position = 'top-end', confirmText = null, denyText = null, confirmCallback = null, denyCallback = null) {
+export function sToast(type, title, content = null, timer = 5000, position = 'top-end', confirmText = null, denyText = null, confirmCallback = null, denyCallback = null) {
     let confirmButtonColorClass, cancelButtonColorClass;
     switch (type) {
         case 'info':
@@ -84,8 +84,8 @@ export function sToast(type, title, content = null, timer = 3000, position = 'to
         html: content, 
         showConfirmButton: confirmText ? true : false,
         confirmButtonText: confirmText,
-        showDenyButton: denyText ? true : false,
-        denyButtonText: denyText,
+        showDenyButton: true,
+        denyButtonText: denyText || 'Cerrar',
         customClass: {
             confirmButton: `btn ${confirmButtonColorClass}`,
             cancelButton: `btn ${cancelButtonColorClass}`,
