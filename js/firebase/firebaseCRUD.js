@@ -53,7 +53,7 @@ export async function createDocument(data, collectionName, excludedTokenFields =
  * @returns {object|null} Un objeto de datos plano del documento o null si no se encuentra.
  */
 
-export function getDocumentById(collectionName = 'patients', documentId = '6tbQ9PTBWDyuwyKHHdth') {
+export async function getDocumentById(collectionName, documentId) {
   if (!collectionName || !documentId) {
     throw new Error("El nombre de la colección y el ID del documento son obligatorios.");
   }
@@ -61,7 +61,7 @@ export function getDocumentById(collectionName = 'patients', documentId = '6tbQ9
   const path = `/${collectionName}/${documentId}`;
 
   try {
-    const response = firestoreRequest(path, "GET", null);
+    const response = await firestoreRequest(path, "GET", null);
 
 
     // Usamos la función auxiliar para convertir los campos a un objeto plano.

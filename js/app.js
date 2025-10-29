@@ -1,12 +1,12 @@
 import { sAlert, sToast } from "./swal.js"; // Importar la función salert desde swal.js
 import { dataDocument, field, fieldList, readAllDocuments } from "./backend.js"; // Importar las clases desde backend.js
-import {getDocuments, createDocument} from "./firebase/firebaseCRUD.js";
+import {getDocuments, getDocumentById, createDocument} from "./firebase/firebaseCRUD.js";
 import { validarBotonesFormularios, agregarCampo } from "./formularios.js";
 
 let editingTableCode = null;
 let editingFieldCode = null;
-const currentTable = {};
-const currentField = {};
+let currentTable = {};
+let currentField = {};
 
 // Función para ejecutar una función cuando el DOM esté completamente cargado
 function runOnDomReady(fn) {
@@ -27,10 +27,10 @@ runOnDomReady(function () {
     validarBotonesFormularios();
     setFieldModalMode('add');
     const fieldCreationModal = new bootstrap.Modal(document.getElementById('fieldCreationModal'));
-    fieldCreationModal.show();
 
     // Almacenar el formulario de creación de campo
     const fieldCreationForm = document.getElementById('fieldCreationForm');
+    const tableCreationForm = document.getElementById('tableCreationForm');
 
     // Botón para abrir el modal de campos en modo agregar
     const addFieldBtn = document.getElementById('addFieldBtn');
@@ -75,13 +75,16 @@ runOnDomReady(function () {
         }
     });
     
-    document.getElementById('createdDisplayTables').addEventListener('click', function (e) {
+    document.getElementById('createdDisplayTables').addEventListener('click', async function (e) {
         if (e.target.closest('.btn-editTable')) {
             const documentId = e.target.closest('.btn-editTable').getAttribute('data-id');
-            const fieldObj = patientsFieldList.fields[fieldCode];
-            if (fieldObj) {
-                setFieldModalMode('edit', fieldObj);
-                var modal = new bootstrap.Modal(document.getElementById('fieldCreationModal'));
+            currentTable = await getDocumentById('displayTables', documentId);
+
+            if (currentTable) {
+                setTableModalMode('edit', currentTable);
+                var modal = new bootstrap.Modal(document.getElementById('tableCreationModal'));
+                fieldToDatatable(currentTable.fields, tableAddedFields);
+                tableAddedFields.draw();
                 modal.show();
             }
         }
@@ -261,23 +264,18 @@ function setTableModalMode(mode, tableData = null) {
         updateBtn.classList.add('d-none');
         tableCreationForm.reset();
         editingTableCode = null;
-    } else if (mode === 'edit' && fieldData) {
+    } else if (mode === 'edit' && tableData) {
         modalTitle.textContent = 'Editar tabla';
         creationBtn.classList.add('d-none');
         updateBtn.classList.remove('d-none');
-        // Llenar los campos del formulario con fieldData
-        document.getElementById('fieldId').value = fieldData.fieldCode;
-        document.getElementById('fieldType').value = fieldData.fieldDataType;
-        document.getElementById('fieldDescriptionEs').value = fieldData.fieldNameEs;
-        document.getElementById('fieldDescriptionEn').value = fieldData.fieldNameEn || '';
-        document.getElementById('fieldMaxLength').value = fieldData.fieldMaxLength || '';
-        document.getElementById('fieldIsRequired').checked = !!fieldData.isRequired;
-        document.getElementById('fieldIsVisible').checked = !!fieldData.isVisible;
-        document.getElementById('fieldIsEditable').checked = !!fieldData.isEditable;
-        document.getElementById('fieldIsSearchable').checked = !!fieldData.isSearchable;
-        document.getElementById('fieldIsAdminOnly').checked = !!fieldData.isAdminPrivative;
-        document.getElementById('fieldIsEnabled').checked = !!fieldData.isEnabled;
-        editingFieldCode = fieldData.fieldCode;
+        // Llenar los campos del formulario con tableData
+        document.getElementById('tableId').value = tableData.tableId;
+        document.getElementById('tableDescriptionEs').value = tableData.tableDescriptionEs;
+        document.getElementById('tableDescriptionEn').value = tableData.tableDescriptionEn || '';
+        document.getElementById('tableIsVisible').checked = !!tableData.isVisible;
+        document.getElementById('tableIsAdminPrivative').checked = !!tableData.isAdminPrivative;
+        document.getElementById('tableIsEnabled').checked = !!tableData.isEnabled;
+        editingTableCode = tableData.documentId;
     }
 }
 
@@ -361,11 +359,11 @@ fieldCreationForm.addEventListener('submit', function (event) {
 // Pasamos los campos iniciales a la tabla DataTable
 // fieldToDatatable(patientsMainTable.fields, tableAddedFields);
 
-let response = await getDocuments('displayTables');
-const docs = response.docs;
+// let response = await getDocuments('displayTables');
+// const docs = response.docs;
 
 // Mapea cada doc a un array donde cada elemento es una celda
-const dataRows = docs.map(doc => [
+const dataTableRows = readAllDocuments('displayTables').then(docs => docs.map(doc => [
     doc.documentId,                  // ID del documento
     doc.tableDescriptionEs,          // Descripción (ES)
     doc.tableDescriptionEn,          // Description (EN)
@@ -373,12 +371,12 @@ const dataRows = docs.map(doc => [
     doc.isAdminPrivative ? 'Sí' : 'No', // Solo admin
     doc.isEnabled ? 'Sí' : 'No',     // Habilitada
     `<button class="btn btn-primary btn-sm" data-id="${doc.documentId}">Editar</button>`
-]);
+]));
 
 // Inicializa el DataTable (si no se ha hecho antes), o usa clear() y rows.add() si ya existe.
 $('#existingTablesTable').DataTable({
     destroy: true, // Para garantizar reinicio limpio si reutilizas el mismo id
-    data: dataRows,
+    data: dataTableRows,
     columns: [
         { title: 'ID del documento' },
         { title: 'Descripción (ES)' },
