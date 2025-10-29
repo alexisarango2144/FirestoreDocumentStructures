@@ -1,9 +1,7 @@
-import { sToast } from "../swal.js";
-
+import { sToast, sAlert } from "../swal.js";
 import { obtenerAuthVariables } from "./variablesMock.env.js";
 
-const authVariables = obtenerAuthVariables();
-
+let authVariables = null;
 
 /**
  * Crea almacena y lee el token de acceso a la API de FireStore (Firebase)
@@ -15,8 +13,62 @@ async function getAccessToken() {
     // Comprobar token en caché junto a su expiry
     const cachedToken = localStorage.getItem('fsAccessToken');
     const cachedExpiry = localStorage.getItem('fsAccessTokenExpiry');
-    if (cachedToken && cachedExpiry && Date.now() < parseInt(cachedExpiry, 10)) {
+    // Si tenemos token válido en caché y ya cargamos las variables de auth, lo retornamos
+    if (cachedToken && cachedExpiry && Date.now() < parseInt(cachedExpiry, 10) && authVariables) {
         return cachedToken; // es un string con el access_token
+    }
+
+
+    // Pedimos la clave de cifrado al usuario con un modal de SweetAlert2.
+    try {
+        const result = await Swal.fire({
+            title: "Digite la clave de cifrado para validar el acceso a Firebase",
+            input: "password",
+            inputAttributes: {
+                autocapitalize: "off",
+                autoComplete: "off"
+            },
+            showCancelButton: true,
+            confirmButtonText: "Validar",
+            showLoaderOnConfirm: true,
+            allowEscapeKey: false,
+            allowOutsideClick: false,
+            customClass: {
+                confirmButton: 'btn btn-primary',
+                denyButton: 'btn btn-secondary',
+            },
+            preConfirm: async (decryptKey) => {
+                try {
+                    const response = await obtenerAuthVariables(decryptKey);
+                    if (!response) {
+                        // Muestra mensaje de validación en el modal sin cerrar
+                        Swal.showValidationMessage('Clave incorrecta o variables no válidas');
+                        return null;
+                    }
+                    return response;
+                } catch (error) {
+                    Swal.showValidationMessage('Error al descifrar las variables');
+                    return null;
+                }
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        });
+
+        if (!result || !result.isConfirmed) {
+            throw new Error('Autenticación cancelada por el usuario.');
+        }
+
+        if (!result.value) {
+            throw new Error('No se pudieron obtener las variables de autenticación de Firebase.');
+        }
+
+        // Guardamos las variables en el scope del módulo para que firestoreRequest las use
+        authVariables = result.value;
+        sAlert('success', 'Autenticación exitosa', 'Se ha validado el acceso a Firebase correctamente.');
+    } catch (err) {
+        // Si hubo cualquier error durante la autenticación, mostramos alerta y propagamos
+        sAlert('error', 'Error de autenticación', err.message || 'No se pudo validar el acceso a Firebase.');
+        throw err;
     }
 
     // De lo contrario se genera y se retorna
@@ -310,34 +362,34 @@ export function generateAdvancedSearchTokensMap(formData, includedTokenFields = 
  * @returns {object} Un objeto JavaScript plano con los valores.
  */
 export function parseFirestoreFields(firestoreFields) {
-  const parsedDoc = {};
-  for (const key in firestoreFields) {
-    if (Object.prototype.hasOwnProperty.call(firestoreFields, key)) {
-      const field = firestoreFields[key];
+    const parsedDoc = {};
+    for (const key in firestoreFields) {
+        if (Object.prototype.hasOwnProperty.call(firestoreFields, key)) {
+            const field = firestoreFields[key];
 
-      // Maneja los tipos de datos de Firestore
-      if (field.stringValue !== undefined) {
-        parsedDoc[key] = field.stringValue;
-      } else if (field.integerValue !== undefined) {
-        parsedDoc[key] = parseInt(field.integerValue);
-      } else if (field.doubleValue !== undefined) {
-        parsedDoc[key] = parseFloat(field.doubleValue);
-      } else if (field.booleanValue !== undefined) {
-        parsedDoc[key] = field.booleanValue;
-      } else if (field.timestampValue !== undefined) {
-        parsedDoc[key] = new Date(field.timestampValue);
-      } else if (field.nullValue !== undefined) {
-        parsedDoc[key] = null;
-      } else if (field.arrayValue !== undefined) {
-        // Llamada recursiva para procesar cada elemento del array
-        parsedDoc[key] = field.arrayValue.values ? field.arrayValue.values.map(value => parseFirestoreFields({ temp: value }).temp) : [];
-      } else if (field.mapValue !== undefined) {
-        // Llamada recursiva para procesar el objeto anidado
-        parsedDoc[key] = parseFirestoreFields(field.mapValue.fields);
-      }
+            // Maneja los tipos de datos de Firestore
+            if (field.stringValue !== undefined) {
+                parsedDoc[key] = field.stringValue;
+            } else if (field.integerValue !== undefined) {
+                parsedDoc[key] = parseInt(field.integerValue);
+            } else if (field.doubleValue !== undefined) {
+                parsedDoc[key] = parseFloat(field.doubleValue);
+            } else if (field.booleanValue !== undefined) {
+                parsedDoc[key] = field.booleanValue;
+            } else if (field.timestampValue !== undefined) {
+                parsedDoc[key] = new Date(field.timestampValue);
+            } else if (field.nullValue !== undefined) {
+                parsedDoc[key] = null;
+            } else if (field.arrayValue !== undefined) {
+                // Llamada recursiva para procesar cada elemento del array
+                parsedDoc[key] = field.arrayValue.values ? field.arrayValue.values.map(value => parseFirestoreFields({ temp: value }).temp) : [];
+            } else if (field.mapValue !== undefined) {
+                // Llamada recursiva para procesar el objeto anidado
+                parsedDoc[key] = parseFirestoreFields(field.mapValue.fields);
+            }
+        }
     }
-  }
-  return parsedDoc;
+    return parsedDoc;
 }
 
 /**
@@ -346,20 +398,20 @@ export function parseFirestoreFields(firestoreFields) {
  * @returns {Array} Array de objetos planos.
  */
 export function parseFirestoreData(docs) {
-  if (!docs || !Array.isArray(docs)) {
-    return [];
-  }
-  
-  return docs.map(doc => {
-    // Si el documento tiene campos, los parseamos.
-    if (doc.fields) {
-      const parsedDoc = parseFirestoreFields(doc.fields);
-      // Agrega el ID del documento
-      parsedDoc.documentId = doc.name.split("/").pop();
-      return parsedDoc;
+    if (!docs || !Array.isArray(docs)) {
+        return [];
     }
-    
-    // Si el documento no tiene campos (es una referencia o un error), lo ignora.
-    return null;
-  }).filter(doc => doc !== null);
+
+    return docs.map(doc => {
+        // Si el documento tiene campos, los parseamos.
+        if (doc.fields) {
+            const parsedDoc = parseFirestoreFields(doc.fields);
+            // Agrega el ID del documento
+            parsedDoc.documentId = doc.name.split("/").pop();
+            return parsedDoc;
+        }
+
+        // Si el documento no tiene campos (es una referencia o un error), lo ignora.
+        return null;
+    }).filter(doc => doc !== null);
 }

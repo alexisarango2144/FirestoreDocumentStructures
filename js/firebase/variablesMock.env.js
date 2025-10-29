@@ -9,28 +9,26 @@
  * @returns Las variables con los datos de acceso a Firebase
  */
 
-export function obtenerAuthVariables() {
-    
+export async function obtenerAuthVariables(decryptKey) {
+
     const PROJECT_ID = "gestionhc-2144";
+    const encryptedServiceAccountKey = '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';
+    const MD5_HASH_KEY = 'de98e5765f6a546f7262f02c8bfecc00';
 
-    const SERVICE_ACCOUNT_KEY_JSON = {
-        "type": "service_account",
-        "project_id": "gestionhc-2144",
-        "private_key_id": "8a4f3760578996e19935156265b3656565adc3e3",
-        "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCkg/LqAwMrf77H\nKeEMYSmqZNm7m+FOLTx/1/KGilxKhnC7i+xyC9dcEu7wVxJMyeeVz6EGPIbWGw9l\nYpBcfNVyxf4tBrfRWxAeTuHTeU68707byQKKA5y9pN51uQZ2CDRrEwmFi4hrBWvE\nZ1zNTjeoFTU/DYmXLbtUIwVNl1YsCi309YeX/7y2n+IHkLwpbCoReB/uaHl6x7XC\nFU/WXy3eIp1orDM/1l0Rg1Gs9DjAlgMda1XBAEsUQBLDsV7ui2EgF+JdnwLGZ0f1\nrQcjI7ZAbq/3dJBSro4/4oFukSlnjBhKdSvZX5dpgRtrrnnDFdFNV6790b/rt3nb\nXczLL+tDAgMBAAECggEACjR/1lxRegVL7vbTav0r+dHqX7o6WQBysaDSU94z/hDQ\n4BFnSBEhTtODLDglKSDtKLHfKeU0nVttsmWm0YCSN7MTIp/kDyyNl2kKlnT+mWG5\ni+YFg6ItuuXbQYTfYxBR5W0iOL0rEoMc6ECxKlshFgrFaXU22ms6ekGh4T+eAiVA\npFZE57U9Qd/trVAMC9prIhMtNKVp6NMPUt2XtnL0srDB8xXwm+j1ZWwjrmnfU48S\nZLJ8nio0vsku/hH4I/UYjLbbpUQvPp2rEUe11b/oVfGHijK82lNGlFvP7pI6yRjw\nuWazKL4BALyvvEZ18RA3iadCCtMjOxeKOsjTZM99YQKBgQDdLoSVstQG7o0sRXKD\n1eOyjriGu2riucZo3xJpN/YMiUCE87iS4muBAZ+6JUYfBzEK8CCjscI9+x3FMKNX\nLN6GPqlaBce/mlv27K9qtdLP7xDeEl13noyKA1nP856NRCY/CVTH81GffXojc6Le\ngkwLqgPJOxY/Usz6JninjQ53XQKBgQC+adDVz7WZSk6v4wGr3T5O7REWOs1RWCjW\nS5H6Q2VSWHxglwwUHazwe5l3zK7Ungoq54xFXyoNihv6VMdHckDZFl13NQHiBQdD\nqtzA8UdH2VnyvbyPsduZdbq3YByW5BuYdMylFphlUdnEcI90fhzFxaj4WmCcKhRl\niDPuu3jjHwKBgEgMMxwgWHi5lDrrlFXlgnpTi0A4JKUeJsdagsDLfdavjtjAG0ud\nfa9UPBeCtMi+qvcJKVipOsC94ACvy0VGVGYeW0P7xglf2r0gdDOqbrVVBoWQLeod\nN2JtnP/kN62EmYDHJVrMo7X0RajurgsVHnheNUWDfce6zRJfHcZWaHPxAoGAaeE5\nKMs49aYmHxOhqEl8DjMwnyXPaX4WJyMaZwj23FUrxCH5q23c7lQsQDtms/+1M6pR\ni3mhTqoPaKGfthDIEm6nRlQJWf7lzTDDU95WfpNTuvDaWyTRMYIPc0xUWWs6FQpN\niTcJQr3C08KrYmGF6ktA6+iFdBDKCrMz/XntfI0CgYAicwLxnNScz724Dv1wFBFF\nZtNu7BSLdXnTTtR8h5wQHE3u9JLro9wWGQuVcAlP8uDvm0g3dgmrWhMiQs9cju8k\n7ogO1rCJ+Bk9tHcRMUydHU+qEh08kuLbfza+Rd5POXhpOCds7Hucil4kVA7oyyIz\nJgyiq4zm/H8aGivElwbJkQ==\n-----END PRIVATE KEY-----\n",
-        "client_email": "firebase-adminsdk-fbsvc@gestionhc-2144.iam.gserviceaccount.com",
-        "client_id": "100712153360907505265",
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40gestionhc-2144.iam.gserviceaccount.com",
-        "universe_domain": "googleapis.com"
-    };
-
-    return {
-        PROJECT_ID,
-        SERVICE_ACCOUNT_KEY_JSON
-    };
+    try {
+        const decryptedServiceAccountKey = CryptoJS.AES.decrypt(encryptedServiceAccountKey, decryptKey).toString(CryptoJS.enc.Utf8);
+        const SERVICE_ACCOUNT_KEY_JSON = JSON.parse(decryptedServiceAccountKey);
+        if (CryptoJS.MD5(JSON.stringify(SERVICE_ACCOUNT_KEY_JSON)).toString() === MD5_HASH_KEY) {
+            return {
+                PROJECT_ID,
+                SERVICE_ACCOUNT_KEY_JSON,
+            };
+        } else {
+            throw new Error("Clave de cifrado incorrecta");
+        }
+    } catch (error) {
+        throw new Error("Error al descifrar las variables de autenticación: " + error.message);
+    }
 }
 
 
