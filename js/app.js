@@ -44,6 +44,7 @@ runOnDomReady(function () {
     if (addTableBtn) {
         addTableBtn.addEventListener('click', function () {
             setTableModalMode('add');
+            tableAddedFields.clear().draw();
         });
     }
 
@@ -52,22 +53,31 @@ runOnDomReady(function () {
         if (e.target.closest('.btn-editField')) {
             e.preventDefault();
             e.stopPropagation();
-            editingFieldCode = e.target.closest('.btn-editField').getAttribute('data-id');
-            currentField = currentTable.fields[editingFieldCode];
-            if (currentField) {
-                setFieldModalMode('edit', currentField);
-                var modal = new bootstrap.Modal(document.getElementById('fieldCreationModal'));
-                modal.show();
+            const fieldCode = e.target.closest('.btn-editField').getAttribute('data-id');
+            const fieldObj = currentTable.fields[fieldCode];
+            if (fieldObj) {
+                // Cerrar el modal de tabla primero (Ya que no se aplica el toggle directamente)
+                const tableModal = bootstrap.Modal.getInstance(document.getElementById('tableCreationModal'));
+                if (tableModal) {
+                    tableModal.hide();
+                }
+                
+                // Esperar un momento antes de abrir el nuevo modal
+                setTimeout(() => {
+                    setFieldModalMode('edit', fieldObj);
+                    const fieldModal = new bootstrap.Modal(document.getElementById('fieldCreationModal'));
+                    fieldModal.show();
+                }, 150);
             }
         }
         // Delegación de eventos para los botones de eliminación de campo
         if (e.target.closest('.btn-deleteField')) {
-            editingFieldCode = e.target.closest('.btn-deleteField').getAttribute('data-id');
-            const currentField = currentTable.fields[editingFieldCode];
-            if (currentField) {
-                console.log('Eliminar campo:', currentField);
-                currentTable.removeField(editingFieldCode);
-                fieldToDatatable(currentTable.fields, tableAddedFields);
+            const fieldCode = e.target.closest('.btn-deleteField').getAttribute('data-id');
+            const fieldObj = patientsFieldList.fields[fieldCode];
+            if (fieldObj) {
+                console.log('Eliminar campo:', fieldObj);
+                patientsFieldList.removeField(fieldCode);
+                fieldToDatatable(patientsFieldList.fields, tableAddedFields);
                 tableAddedFields.draw();
                // TODO: 
                // Agregar confirmación antes de eliminar
@@ -234,12 +244,13 @@ function setFieldModalMode(mode, fieldData = null) {
     const creationBtn = document.getElementById('btnCrearCampo');
     const updateBtn = document.getElementById('btnActualizarCampo');
     if (mode === 'add') {
+        fieldCreationForm.reset();
         modalTitle.textContent = 'Agregar campo';
         creationBtn.classList.remove('d-none');
         updateBtn.classList.add('d-none');
-        fieldCreationForm.reset();
         editingFieldCode = null;
     } else if (mode === 'edit' && fieldData) {
+        fieldCreationForm.reset();
         modalTitle.textContent = 'Modificar campo';
         creationBtn.classList.add('d-none');
         updateBtn.classList.remove('d-none');
