@@ -50,22 +50,24 @@ runOnDomReady(function () {
     // Delegación de eventos para los botones de edición de campo y tabla
     document.getElementById('tableAddedFields').addEventListener('click', function (e) {
         if (e.target.closest('.btn-editField')) {
-            const fieldCode = e.target.closest('.btn-editField').getAttribute('data-id');
-            const fieldObj = patientsFieldList.fields[fieldCode];
-            if (fieldObj) {
-                setFieldModalMode('edit', fieldObj);
+            e.preventDefault();
+            e.stopPropagation();
+            editingFieldCode = e.target.closest('.btn-editField').getAttribute('data-id');
+            currentField = currentTable.fields[editingFieldCode];
+            if (currentField) {
+                setFieldModalMode('edit', currentField);
                 var modal = new bootstrap.Modal(document.getElementById('fieldCreationModal'));
                 modal.show();
             }
         }
         // Delegación de eventos para los botones de eliminación de campo
         if (e.target.closest('.btn-deleteField')) {
-            const fieldCode = e.target.closest('.btn-deleteField').getAttribute('data-id');
-            const fieldObj = patientsFieldList.fields[fieldCode];
-            if (fieldObj) {
-                console.log('Eliminar campo:', fieldObj);
-                patientsFieldList.removeField(fieldCode);
-                fieldToDatatable(patientsFieldList.fields, tableAddedFields);
+            editingFieldCode = e.target.closest('.btn-deleteField').getAttribute('data-id');
+            const currentField = currentTable.fields[editingFieldCode];
+            if (currentField) {
+                console.log('Eliminar campo:', currentField);
+                currentTable.removeField(editingFieldCode);
+                fieldToDatatable(currentTable.fields, tableAddedFields);
                 tableAddedFields.draw();
                // TODO: 
                // Agregar confirmación antes de eliminar
@@ -79,6 +81,7 @@ runOnDomReady(function () {
         if (e.target.closest('.btn-editTable')) {
             const documentId = e.target.closest('.btn-editTable').getAttribute('data-id');
             currentTable = await getDocumentById('displayTables', documentId);
+            editingTableCode = currentTable.tableId;
 
             if (currentTable) {
                 setTableModalMode('edit', currentTable);
@@ -88,6 +91,8 @@ runOnDomReady(function () {
                 modal.show();
             }
         }
+
+        
         // Delegación de eventos para los botones de eliminación de campo
         if (e.target.closest('.btn-deleteField')) {
             const fieldCode = e.target.closest('.btn-deleteField').getAttribute('data-id');

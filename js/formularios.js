@@ -1,3 +1,5 @@
+import { sAlert } from "./swal.js";
+
 export function validarBotonesFormularios() {
     // Botón para crear una nueva tabla
     let tableCreationBtn = document.getElementById('btnCrearTabla');
@@ -160,14 +162,19 @@ function guardarEdicionCampo() {
 
     // Validación básica
     if (!fieldCode || !fieldDataType || !fieldNameEs) {
-        alert('Por favor, complete los campos obligatorios.');
+        sAlert('warning', 'Por favor, complete los campos obligatorios.',);
+        return;
+    }
+
+    if(!currentTable) {
+        sAlert('error', 'No se identificó la tabla actual.');
         return;
     }
 
     // Actualizar el campo existente
-    patientsFieldList.editField(editingFieldCode, new field(
+    currentTable.editField(editingFieldCode, new field(
         fieldCode,
-        Object.keys(patientsFieldList.fields).indexOf(editingFieldCode),
+        Object.keys(currentTable.fields).indexOf(editingFieldCode),
         fieldDataType,
         fieldNameEs,
         fieldNameEn,
@@ -180,10 +187,11 @@ function guardarEdicionCampo() {
         isEnabled
     ));
     // Actualizar la tabla DataTable con todos los campos actuales
-    fieldToDatatable(patientsFieldList.fields, tableAddedFields);
+    fieldToDatatable(currentTable.fields, tableAddedFields);
     tableAddedFields.draw();
     // Limpiar el formulario
     fieldCreationForm.reset();
+    editingFieldCode = null;
     // Cerrar el modal
     const modal = bootstrap.Modal.getInstance(document.getElementById('fieldCreationModal'));
     if (modal) modal.hide();
