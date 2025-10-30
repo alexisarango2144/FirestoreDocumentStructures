@@ -16,7 +16,7 @@ let entidadResponsable = new field('entidadResponsable', 7, 'string', 'Entidad R
 let patientsFieldList = new fieldList();
 patientsFieldList.addFields([primerNombre, segundoNombre, primerApellido, segundoApellido, tipoIdentificacion, numeroIdentificacion, fechaNacimiento, entidadResponsable]);
 
-let patientsMainTable = new dataDocument('patientsMain', 'Pacientes', 'Patients', patientsFieldList.fields, true, true, true);
+let patientsMainTable = new dataDocument('patientsMain', 'Pacientes', 'Patients', patientsFieldList, true, true, true);
 
 // Ejemplo de resultado de field structure()
 console.log('Ejemplo de objeto generado por el constructor de field:');
@@ -31,12 +31,14 @@ console.log('Objeto en JSON: ' + JSON.stringify(patientsMainTable.structure(), n
 // Acceder a los datos
 console.log('Descripción ES:', patientsMainTable.tableDescriptionEs);
 console.log('Descripción EN:', patientsMainTable.tableDescriptionEn);
-console.log('Campos:', Object.keys(patientsMainTable.fields));
-console.log('Primer nombre (ES):', patientsMainTable.fields.primerNombre.value('es'));
-console.log('Primer nombre (EN):', patientsMainTable.fields.primerNombre.value('en'));
 
 console.log("Campos ordenados por índice:");
-console.log(patientsMainTable.fields);
+console.log('Campos:', patientsMainTable.listFieldKeys());
+console.log('Primer nombre (ES):', patientsMainTable.getField('primerNombre')?.value('es'));
+console.log('Primer nombre (EN):', patientsMainTable.getField('primerNombre')?.value('en'));
+
+console.log("Campos ordenados por índice:");
+console.log(patientsMainTable.returnFields());
 
 
 console.log("Nombre y clave de los campos ordenados:");

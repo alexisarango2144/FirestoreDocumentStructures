@@ -130,7 +130,6 @@
         <div class="modal-content">
           <div class="modal-header">
             <h1 class="modal-title fs-5" id="tableCreationModalLabel">Crear tabla</h1>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <form id="tableCreationForm" class="p-4">
@@ -190,7 +189,7 @@
             </form>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-target="#tableCreationModal"
+            <button id="tableCreationModalCancelBtn" type="button" class="btn btn-secondary" data-bs-target="#tableCreationModal"
               data-bs-toggle="modal">Cancelar</button>
             <!-- Los demás botones se crearán desde JS -->
           </div>
@@ -217,7 +216,7 @@
                 <div class="mb-3 col-4">
                   <label for="fieldType" class="form-label">Tipo de dato</label>
                   <select class="form-select" id="fieldType" required>
-                    <option disabled selected>Seleccione</option>
+                    <option value="" disabled hidden selected>Seleccione</option>
                     <option value="string">String</option>
                     <option value="number">Number</option>
                     <option value="date">Date</option>
