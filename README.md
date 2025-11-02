@@ -1,110 +1,96 @@
-# FirestoreDocumentStructures
+## Resumen
 
-Este proyecto permite modelar y gestionar la estructura de documentos para bases de datos Firebase Firestore, facilitando la configuración de futuras "tablas" (colecciones de documentos) de manera visual y dinámica.
+`fsDocumentStructures` es una pequeña aplicación front-end para definir y administrar estructuras de documentos (tablas) y sus campos. Permite crear, editar y serializar la definición de tablas con sus respectivos campos, exportarlas a un formato compatible con Firestore y gestionarlas desde una interfaz con modales y tablas dinámicas.
 
-## Objetivo
+## Estructura de carpetas
 
-Proveer una interfaz para definir, editar y visualizar la estructura de documentos Firestore, permitiendo:
-- Crear y configurar campos con propiedades como tipo, longitud, visibilidad, buscabilidad, etc.
-- Simular la estructura de colecciones y documentos antes de implementarlas en Firebase.
-- Exportar la configuración para su uso en proyectos reales.
+Raíz:
+- `index.html` — Página principal que carga la UI.
+- `README.md` — (este archivo) documentación del proyecto.
 
-## Características
-- Interfaz web con Bootstrap 5 y DataTables.js.
-- Modal para agregar y editar campos de cada documento.
-- Validación de unicidad de campos y confirmación de sobrescritura.
-- Visualización en tabla de todos los campos y sus propiedades.
-- Código modular y orientado a objetos (ES6).
+Carpeta `assets/`:
+- `datatables/` — Configuración y traducciones para DataTables (`es-ES.json`).
+- `sweetalert2/` — Integración con SweetAlert2 (`bootstrap-5.css`, `swal.js`).
 
-## Estructura principal
-- `index.html`: Interfaz principal y modales.
-- `js/app.js`: Lógica de UI, eventos y renderizado.
-- `js/backend.js`: Clases para modelar documentos y campos.
-- `datatables/es-ES.json`: Traducción de DataTables.
+Carpeta `js/`:
+- `app.js` — Inicialización de la aplicación, DataTables y exposición de variables globales compartidas.
+- `backend.js` — Modelos principales: `dataDocument`, `field`, `fieldList` y helpers para serialización/deserialización.
+- `utilities.js` — Utilidades de UI y helpers reutilizables (p. ej. renderizado de filas).
+- `forms.js` — Lógica de los formularios y modales (crear/editar tablas y campos).
+- `firebase/`:
+	- `firebaseCRUD.js` — Abstracción de llamadas a Firestore (get/create/update/delete).
+	- `firebaseService.js` — Inicialización / helpers de Firebase (si aplica).
+	- `variablesMock.env.js` — Lugar para introducir (local) variables de configuración de Firebase en desarrollo.
 
-## Uso
-1. Clona el repositorio y abre `index.html` en tu navegador.
-2. Usa el botón "Añadir campo" para definir los campos de tu documento.
-3. Edita o elimina campos según necesidad.
-4. Visualiza la estructura final antes de implementarla en Firestore.
+## Funcionalidad principal
 
-## Ejemplo de estructura generada
-```json
-{
-  "patientsMain": {
-    "tableDescriptionEs": "Pacientes",
-    "tableDescriptionEn": "Patients",
-    "fields": {
-      "primerNombre": {
-        "fieldCode": "primerNombre",
-        "index": 0,
-        "fieldDataType": "string",
-        "fieldNameEs": "Primer Nombre",
-        "fieldNameEn": "First Name",
-        "fieldMaxLength": 50,
-        "isRequired": true,
-        "isVisible": true,
-        "isEditable": true,
-        "isSearchable": false,
-        "isAdminPrivative": true,
-        "isEnabled": true
-      },
-      "segundoNombre": {
-        "fieldCode": "segundoNombre",
-        "index": 1,
-        "fieldDataType": "string",
-        "fieldNameEs": "Segundo Nombre",
-        "fieldNameEn": "Second Name",
-        "fieldMaxLength": 50,
-        "isRequired": false,
-        "isVisible": true,
-        "isEditable": true,
-        "isSearchable": false,
-        "isAdminPrivative": true,
-        "isEnabled": true
-      },
-      "primerApellido": {
-        "fieldCode": "primerApellido",
-        "index": 2,
-        "fieldDataType": "string",
-        "fieldNameEs": "Primer Apellido",
-        "fieldNameEn": "Last Name",
-        "fieldMaxLength": 50,
-        "isRequired": true,
-        "isVisible": true,
-        "isEditable": true,
-        "isSearchable": false,
-        "isAdminPrivative": true,
-        "isEnabled": true
-      },
-      ...
-      "entidadResponsable": {
-        "fieldCode": "entidadResponsable",
-        "index": 7,
-        "fieldDataType": "string",
-        "fieldNameEs": "Entidad Responsable",
-        "fieldNameEn": "Responsible Entity",
-        "fieldMaxLength": 100,
-        "isRequired": true,
-        "isVisible": true,
-        "isEditable": true,
-        "isSearchable": false,
-        "isAdminPrivative": true,
-        "isEnabled": true
-      }
-    },
-    "isVisible": true,
-    "isAdminPrivative": true,
-    "isEnabled": true
-  }
-}
+- Crear y editar definiciones de tablas (identificador, descripción, flags de visibilidad/privacidad/estado).
+- Crear, editar, reordenar y eliminar campos de una tabla (tipo, nombre en ES/EN, longitud máxima, flags).
+- Serializar la estructura a un objeto compatible con Firestore y guardar/recuperar mediante la capa `firebaseCRUD`.
+- Interfaz basada en DataTables para listar tablas y campos, con modales para creación/edición y toasts/alerts con SweetAlert2.
+
+## Arquitectura y decisiones
+
+- Patrón: arquitectura modular basada en ES modules. Separación entre modelos (`backend.js`), UI y lógica de formularios (`forms.js`), inicialización y tablas (`app.js`) y persistencia (`firebase/*`).
+- Separación de responsabilidades: cada archivo tiene una responsabilidad clara (modelo, presentación, persistencia). Se usan funciones exportadas y variables globales mínimas para compartir estado mutable entre módulos cuando es necesario.
+- Dependencias principales:
+	- DataTables (para tablas interactivas)
+	- Bootstrap (componentes UI y modales)
+	- SweetAlert2 (alertas y confirmaciones)
+	- Firebase (opcional, para persistencia en Firestore)
+
+Decisiones importantes:
+- Se expusieron ciertas variables y funciones en `window` (p. ej. `window.currentTable`, `window.tableAddedFields`, `window.refreshDisplayTablesTable`) para evitar problemas de orden de carga entre módulos y facilitar la comunicación entre scripts que se cargan en el navegador sin bundler.
+- Las estructuras de datos (clases `field` / `fieldList`) manejan la conversión a/desde objetos planos para facilitar el almacenamiento en Firestore.
+
+## Cómo ejecutar
+
+Requisitos mínimos: un navegador moderno y, para pruebas locales, un servidor estático o la extensión Live Server de VS Code. (Opcionalmente Node y Python si quiere usar un servidor simple).
+
+1) Abrir con Live Server (recomendado):
+
+	 - Instala la extensión "Live Server" en VS Code y abre `index.html` con "Open with Live Server".
+
+2) Servidor estático con Python (si tienes Python instalado):
+
+```powershell
+cd C:\Alexis\CoderHouse\Javascript\DataStructures
+python -m http.server 8000
+# Abrir http://localhost:8000 en el navegador
 ```
 
-## Autor
-- @alexisarango2144
+3) Configurar Firebase (si vas a usar persistencia):
 
-## Entrega para
-- Curso JS de CoderHouse
+- Añade tus credenciales/local config en `js/firebase/variablesMock.env.js` o implementa un archivo equivalente con tus claves. No subas secretos al repositorio.
+
+4) Abrir la app en el navegador y usar la interfaz para crear tablas y campos.
+
+## Notas para desarrolladores
+
+- Para revisar sintaxis rápida de archivos JS puedes usar:
+
+```powershell
+node --check js/backend.js
+node --check js/forms.js
+```
+
+- Estructura de modelos:
+	- `dataDocument` encapsula la tabla y delega la gestión de campos a `fieldList`.
+	- `fieldList` actúa como un mapa/colección de instancias `field` y ofrece utilidades para serializar y reindexar.
+
+- Si vas a modificar la persistencia con Firebase, prueba primero en un proyecto de prueba y añade variables de entorno locales.
+
+## Sugerencias de mejora
+
+- Añadir un bundler (Webpack, Vite) o convertir el proyecto a TypeScript para mejorar seguridad de tipos y modularidad.
+- Añadir ESLint + Prettier para consistencia de estilo.
+- Añadir unit tests (Jest/Mocha) para `fieldList` y `dataDocument` (operaciones add/edit/remove/move/serialize).
+- Eliminar o reducir la dependencia de `window` exponiendo un entrypoint único que inicialice y pase dependencias (evitar variables globales compartidas).
 
 ## Licencia
-MIT
+
+Uso educativo y modificaciones personales permitidas. Este repositorio se comparte con finalidad didáctica: puedes estudiar, modificar y usar el código con fines educativos y personales, pero no sublicenciar ni comercializar el contenido sin permiso explícito del autor.
+
+---
+
+# fsDocumentStructures

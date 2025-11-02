@@ -1,11 +1,14 @@
-import { sToast, sAlert } from "../swal.js";
+import { sToast, sAlert } from "../../assets/sweetalert2/swal.js";
 import { obtenerAuthVariables } from "./variablesMock.env.js";
 
 let authVariables = null;
 
 /**
- * Crea almacena y lee el token de acceso a la API de FireStore (Firebase)
- * @returns El token de acceso
+ * Crea, almacena y retorna el token de acceso a la API de Firestore (Firebase).
+ * Si ya existe un token válido en localStorage lo retorna sin pedir credenciales.
+ * En el flujo normal muestra un modal para pedir la clave de descifrado (mock) y obtiene las variables de autenticación.
+ * @returns {Promise<string>} access_token de la cuenta de servicio.
+ * @throws {Error} Si el usuario cancela o no se pueden obtener/descifrar las variables.
  */
 
 async function getAccessToken() {
@@ -24,7 +27,7 @@ async function getAccessToken() {
 
         // De lo contrario pedimos la clave de cifrado al usuario con un modal de SweetAlert2.
         const result = await Swal.fire({
-            theme: 'bootstrap-5',
+            // theme: 'bootstrap-5',
             title: "Digite la clave de cifrado para validar el acceso a Firebase",
             input: "password",
             inputAttributes: {
@@ -38,7 +41,7 @@ async function getAccessToken() {
             allowOutsideClick: false,
             customClass: {
                 confirmButton: 'btn btn-primary',
-                denyButton: 'btn btn-secondary',
+                cancelButton: 'btn btn-secondary'
             },
             preConfirm: async (decryptKey) => {
                 try {
@@ -70,7 +73,7 @@ async function getAccessToken() {
         // Guardamos las variables en el scope del módulo para que firestoreRequest las use
         authVariables = result.value;
 
-        sAlert('success', 'Autenticación exitosa', 'Se ha validado el acceso a Firebase correctamente.');
+        sAlert('success', 'Autenticación exitosa', 'Se ha validado el acceso a Firebase correctamente.', 'Listo');
     } catch (e) {
         // Si hubo cualquier error durante la autenticación, mostramos alerta y propagamos
         sAlert('error', 'Error de autenticación', e.message || 'No se pudo validar el acceso a Firebase.');
@@ -121,9 +124,10 @@ async function getAccessToken() {
 }
 
 /**
- * Función para generar el token JWT adaptada de una diseñada en Apps Script. Se reemplazan las utilidades de Apps Script por el Web Crypto API del navegador 
- * @param {object} serviceAccount Cuenta con la información de autenticación de la cuenta para generar el token JWT
- * @returns 
+ * Genera un JWT firmado (RS256) usando la clave privada del `serviceAccount`.
+ * @param {object} serviceAccount Objeto con las propiedades requeridas por la cuenta de servicio (p.ej. client_email, private_key).
+ * @returns {Promise<string>} JWT firmado compacto (header.payload.signature).
+ * @throws {Error} Si la clave privada no es válida o falla la operación criptográfica.
  */
 async function createJWT(serviceAccount) {
     const header = {
@@ -179,11 +183,13 @@ async function createJWT(serviceAccount) {
 }
 
 /**
- * Realiza la solicitud a Firebase 
- * @param {string} path 
- * @param {string} method 
- * @param {object} payload 
- * @returns Respuesta como objeto JSON
+ * Realiza la solicitud a la API REST de Firestore para el proyecto autenticado.
+ * @param {string} path Ruta relativa a los documentos (p.ej. '/collection' o '/collection/docId'). Incluye 
+ *               operaciones especiales como ':runQuery'.
+ * @param {string} method Método HTTP (GET, POST, PATCH, DELETE, PUT).
+ * @param {object} [payload] Cuerpo de la petición ya en formato JSON-serializable.
+ * @returns {Promise<object>} Respuesta decodificada de la API de Firestore.
+ * @throws {Error} Si falla la obtención del token o la petición a la API.
  */
 export async function firestoreRequest(path, method, payload) {
     try {
@@ -205,9 +211,9 @@ export async function firestoreRequest(path, method, payload) {
         }
         return data;
     } catch (e) {
-        sToast('error', 'Error en la solicitud a Firestore', 'No se pudo completar la solicitud a Firestore. Ver consola para más detalles.');
-        console.error("Error en la solicitud a Firestore: ", e);
-        throw e;
+        // Mostramos toast para el desarrollador y relanzamos con detalle
+        sToast('error', 'Error en la solicitud a Firestore', 'No se pudo completar la solicitud a Firestore.');
+        throw new Error('Error en la solicitud a Firestore: ' + (e && e.message ? e.message : e));
     }
 }
 
@@ -226,6 +232,10 @@ export async function firestoreRequest(path, method, payload) {
  */
 export function prepareForFirestore(data) {
     try {
+        if (typeof data !== 'object' || data === null) {
+            throw new Error('El parámetro data debe ser un objeto.');
+        }
+
         let fields = {};
         for (let key in data) {
             if (Object.prototype.hasOwnProperty.call(data, key)) {
@@ -234,8 +244,8 @@ export function prepareForFirestore(data) {
         }
         return { fields };
     } catch (e) {
-        sToast('error', 'Error al preparar datos para Firestore', 'No se pudieron convertir los datos al formato requerido por Firestore. Ver consola para más detalles.');
-        return console.error("Error en prepareForFirestore: " + e.message);
+        sToast('error', 'Error al preparar datos para Firestore', 'No se pudieron convertir los datos al formato requerido por Firestore.');
+        throw new Error('Error en prepareForFirestore: ' + (e && e.message ? e.message : e));
     }
 }
 
@@ -300,11 +310,15 @@ export function convertToFirestoreObject(value) {
 }
 
 /**
- * Genera un mapa avanzado de tokens de búsqueda, incluyendo substrings para búsquedas parciales.
- * @param {object} formData El objeto con los datos del formulario.
- * @param {Array<string>} [includedTokenFields=[]] Un array de claves a incluir en los tokens.
- * @param {number} [minSubstringLength=3] La longitud mínima para los substrings generados.
- * @returns {object} Un mapa de tokens y substrings, listo para Firestore.
+ * Genera un mapa avanzado de tokens de búsqueda (searchTokens).
+ * - Normaliza texto (minúsculas, sin diacríticos y sin caracteres no alfanuméricos salvo espacios).
+ * - Genera tokens por palabra y substrings prefix desde `minSubstringLength`.
+ * - Si `includedTokenFields` es una cadena se interpreta como un campo; si es un array se usan esos campos.
+ * - Si `includedTokenFields` está vacío o es null/undefined, no se incluirá ningún campo y la función devuelve un objeto vacío.
+ * @param {object} formData Objeto con los datos del formulario.
+ * @param {Array<string>|string|null} [includedTokenFields=[]] Campos a incluir en el mapa (array, string o null).
+ * @param {number} [minSubstringLength=3] Longitud mínima de substrings a generar.
+ * @returns {object} Mapa de tokens (claves -> true). Puede ser un objeto vacío si no hay campos incluidos.
  */
 export function generateAdvancedSearchTokensMap(formData, includedTokenFields = [], minSubstringLength = 3) {
     const searchMap = {};
@@ -337,10 +351,20 @@ export function generateAdvancedSearchTokensMap(formData, includedTokenFields = 
         }
     };
 
+    // Aseguramos que includedTokenFields sea un array
+    const tokenFields = Array.isArray(includedTokenFields)
+        ? includedTokenFields
+        : typeof includedTokenFields === 'string'
+            ? [includedTokenFields]
+            : [];
+
+    if (!formData || typeof formData !== 'object') return {};
+
     for (const key in formData) {
         if (!Object.prototype.hasOwnProperty.call(formData, key)) continue;
-        // Si includedTokenFields está vacío, se incluyen todos los campos
-        if (Array.isArray(includedTokenFields) && includedTokenFields.length > 0 && !includedTokenFields.includes(key)) continue;
+        // Si tokenFields está vacío, no se incluye ningún campo
+        if (tokenFields.length === 0) continue; // Skip all fields if tokenFields is empty
+        if (!tokenFields.includes(key)) continue; // Skip fields not in tokenFields
 
         const value = formData[key];
         if (value === null || value === undefined || value === '') continue;

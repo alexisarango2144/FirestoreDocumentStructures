@@ -27,7 +27,7 @@ export async function obtenerAuthVariables(decryptKey) {
         const bytes = CryptoJS.AES.decrypt(encryptedServiceAccountKey, decryptKey);
         const decryptedServiceAccountKey = bytes.toString(CryptoJS.enc.Utf8);
 
-        // Si el descifrado con clave incorrecta devuelve cadena vacía o no-UTF8
+        // Si se hace descifrado con clave incorrecta devuelve cadena vacía o no-UTF8
         if (!decryptedServiceAccountKey || decryptedServiceAccountKey.trim() === '') {
             throw new Error('La clave de cifrado es incorrecta o el resultado del descifrado es vacío');
         }
@@ -37,7 +37,7 @@ export async function obtenerAuthVariables(decryptKey) {
             SERVICE_ACCOUNT_KEY_JSON = JSON.parse(decryptedServiceAccountKey);
         } catch (parseError) {
             // Si el contenido descifrado no es un JSON válido muy probablemente se debe a una clave incorrecta
-            throw new Error('El contenido descifrado no es un JSON válido. ¿Valide la clave de de descifrado?');
+            throw new Error('La clave de cifrado es incorrecta. El contenido descifrado no es válido.');
         }
 
         const userInputHash = CryptoJS.MD5(JSON.stringify(SERVICE_ACCOUNT_KEY_JSON)).toString();

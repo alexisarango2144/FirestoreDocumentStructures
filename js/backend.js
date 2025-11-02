@@ -1,6 +1,8 @@
 import { getDocuments } from "./firebase/firebaseCRUD.js";
-import { parseFirestoreData } from "./firebase/firebaseService.js";
-import { sToast } from "./swal.js";
+import { sToast } from "../assets/sweetalert2/swal.js";
+
+
+
 
 /**
  * Lee todos los documentos de una colección de Firestore.
@@ -36,7 +38,7 @@ export async function readAllDocuments(collectionName) {
  * @param {string} documentId El ID del documento a actualizar.
  * @returns {object} El documento actualizado.
  */
-async function updateDocumentInCollection(data, collectionName, documentId) {
+export async function updateDocumentInCollection(data, collectionName, documentId) {
   try {
     let firestoreData = prepareForFirestore(data);
     let response = await updateDocument(firestoreData, collectionName, documentId);
@@ -48,9 +50,25 @@ async function updateDocumentInCollection(data, collectionName, documentId) {
 }
 
 
+/***********************
+* DEFINICIÓN DE CLASES *
+***********************/
+
+/**
+ * Clase que representa un documento de datos con sus campos.
+ * @method structure Devuelve la estructura del documento para Firestore.
+ * @method desciption Devuelve la descripción del documento en el idioma especificado.
+ * @method listFieldKeyNames Devuelve una lista de pares {fieldCode: fieldNameEs} de los campos.
+ * @method getField Devuelve una instancia de campo por su código.
+ * @method addField Añade un nuevo campo al documento.
+ * @method editField Edita un campo existente en el documento.
+ * @method removeField Elimina un campo del documento.
+ * @method listFieldKeys Devuelve una lista de los códigos de los campos.
+ * @method returnFields Devuelve una lista de instancias de campos ordenadas por índice.
+ */
 export class dataDocument {
     constructor(tableId, tableDescriptionEs, tableDescriptionEn = null, fields = {}, isVisible = true, isAdminPrivative = true, isEnabled = true, documentId = null) {
-        this.tableId = tableId;
+        this.tableId = tableId; // Código único de la tabla
         this.tableDescriptionEs = tableDescriptionEs;
         this.tableDescriptionEn = tableDescriptionEn;
         // Normalizar `fields` a una instancia de fieldList
@@ -70,7 +88,7 @@ export class dataDocument {
             tableId: this.tableId,
             tableDescriptionEs: this.tableDescriptionEs,
             tableDescriptionEn: this.tableDescriptionEn,
-            // Serializar fields a un objeto plano para Firestore o transporte
+            // Convertir fields a un objeto plano para Firestore o manejo nativo
             fields: this.fields && typeof this.fields.toObject === 'function' ? this.fields.toObject() : this.fields,
             isVisible: this.isVisible,
             isAdminPrivative: this.isAdminPrivative,
@@ -95,8 +113,40 @@ export class dataDocument {
         }
         return Object.values(this.fields).map(field => field.keyValue());
     }
+
+    getField(fieldCode) {
+        return this.fields.getField(fieldCode);
+    }
+
+    addField(fieldInstance) {
+        return this.fields.addField(fieldInstance);
+    }
+
+    editField(fieldCode, newField) {
+        return this.fields.editField(fieldCode, newField);
+    }
+
+    removeField(fieldCode) {
+        return this.fields.removeField(fieldCode);
+    }
+
+    listFieldKeys() {
+        return this.fields.listFieldKeys();
+    }
+    
+    returnFields() {
+        return this.fields.returnFields();
+    }
 }
 
+/**
+ * Clase que representa un campo individual dentro de un documento.
+ * Proporciona métodos para acceder a sus propiedades y representaciones.
+ * @method structure Devuelve la estructura del campo para Firestore.
+ * @method value Devuelve el nombre del campo en el idioma especificado.
+ * @method key Devuelve el código único del campo.
+ * @method keyValue Devuelve un par { fieldCode: fieldNameEs || fielNameEn } útil para listados.
+ */
 export class field {
     constructor(fieldCode, fieldIndex, fieldDataType, fieldNameEs, fieldNameEn = null, fieldMaxLength = null, isRequired = false, isVisible = true, isEditable = true, isSearchable = false, isAdminPrivative = false, isEnabled = true) {
         this.fieldCode = fieldCode;
@@ -121,7 +171,7 @@ export class field {
                 fieldNameEs: this.fieldNameEs,
                 fieldNameEn: this.fieldNameEn,
                 fieldMaxLength: this.fieldMaxLength,
-                fieldIsRequired: this.isRequired,
+                isRequired: this.isRequired,
                 isVisible: this.isVisible,
                 isEditable: this.isEditable,
                 isSearchable: this.isSearchable,
@@ -139,7 +189,8 @@ export class field {
         }
     }
 
-    index() {
+    // Obtener el índice (evitar colisión con la propiedad `index` en la instancia)
+    getIndex() {
         return this.index;
     }
 
@@ -148,15 +199,36 @@ export class field {
         return this.fieldCode;
     }
 
-    // Devuelve un par { fieldCode: fieldNameEs } útil para listados
-    keyValue() {
-        return { [this.fieldCode]: this.fieldNameEs };
+    // Devuelve un par { fieldCode: fieldNameEs || fielNameEn } útil para listados
+    keyValue(language = 'es') {
+        if (language === 'es') {
+            return { [this.fieldCode]: this.fieldNameEs };
+        } else if (language === 'en') {
+            return { [this.fieldCode]: this.fieldNameEn };
+        }
     }
 }
 
+/**
+ * Clase que representa una lista de campos dentro de un documento.
+ * Proporciona métodos para gestionar y manipular la colección de campos.
+ * @method fromObject Crea una instancia de fieldList a partir de un objeto plano { fieldCode: fieldData }.
+ * @method toObject Serializa la lista de campos a un objeto plano con la estructura esperada por Firestore.
+ * @method addField Añade un nuevo campo a la lista.
+ * @method addFields Añade múltiples campos a la lista.
+ * @method editField Edita un campo existente en la lista.
+ * @method removeField Elimina un campo de la lista.
+ * @method returnFields Devuelve una lista de instancias de campos ordenadas por índice.
+ * @method listFieldKeys Devuelve una lista de los códigos de los campos.
+ * @method listFieldValues Devuelve una lista de los nombres de los campos en el idioma especificado.
+ * @method listFieldIndexes Devuelve una lista de los índices de los campos.
+ * @method listFieldKeyNames Devuelve una lista de pares {fieldCode: fieldNameEs} de los campos.
+ * @method getField Devuelve una instancia `field` por su código o null si no existe.
+ * @method moveField Método para mover un campo a una nueva posición (reindexa automáticamente).
+ */
 export class fieldList {
     constructor() {
-        this.fields = {};
+        // No es necesario reasignar `this`. La instancia actuará como un mapa de campos.
     }
 
     /**
@@ -168,16 +240,17 @@ export class fieldList {
     static fromObject(obj = {}) {
         const fl = new fieldList();
         Object.entries(obj).forEach(([fieldCode, fieldData]) => {
-            fl.fields[fieldCode] = new field(
+            // field constructor: (fieldCode, fieldIndex, fieldDataType, fieldNameEs, fieldNameEn, fieldMaxLength,
+            //                    isRequired, isVisible, isEditable, isSearchable, isAdminPrivative, isEnabled)
+            fl[fieldCode] = new field(
                 fieldCode,
                 // Aceptamos tanto `index` como `idx` si hay variaciones
                 fieldData.index ?? fieldData.idx ?? 0,
                 fieldData.fieldDataType,
                 fieldData.fieldNameEs,
-                fieldData.fieldNameEn,
-                fieldData.fieldMaxLength,
-                // el nombre en Firestore puede ser `fieldIsRequired` o `isRequired`
-                (fieldData.fieldIsRequired ?? fieldData.isRequired) || false,
+                fieldData.fieldNameEn ?? null,
+                fieldData.fieldMaxLength ?? null,
+                fieldData.isRequired ?? false,
                 fieldData.isVisible ?? true,
                 fieldData.isEditable ?? true,
                 fieldData.isSearchable ?? false,
@@ -195,7 +268,8 @@ export class fieldList {
      */
     toObject() {
         const obj = {};
-        Object.values(this.fields)
+        Object.values(this)
+            // Ordenamos por índice ascendente
             .sort((a, b) => a.index - b.index)
             .forEach(f => {
                 obj[f.fieldCode] = {
@@ -204,7 +278,7 @@ export class fieldList {
                     fieldNameEs: f.fieldNameEs,
                     fieldNameEn: f.fieldNameEn,
                     fieldMaxLength: f.fieldMaxLength,
-                    fieldIsRequired: f.isRequired,
+                    isRequired: f.isRequired,
                     isVisible: f.isVisible,
                     isEditable: f.isEditable,
                     isSearchable: f.isSearchable,
@@ -217,7 +291,7 @@ export class fieldList {
 
     _reassignIndexes() {
         // Ordena los campos por el índice actual y reasigna índices consecutivos desde 0
-        const sortedFields = Object.values(this.fields).sort((a, b) => a.index - b.index);
+        const sortedFields = Object.values(this).sort((a, b) => a.index - b.index);
         sortedFields.forEach((field, idx) => {
             field.index = idx;
         });
@@ -226,8 +300,8 @@ export class fieldList {
     addField(newField) {
         if (newField instanceof field) {
             // Asignar el índice según la cantidad de campos actuales
-            newField.index = Object.keys(this.fields).length;
-            this.fields[newField.key()] = newField;
+            newField.index = Object.keys(this).length;
+            this[newField.key()] = newField;
             this._reassignIndexes();
         } else {
             throw new Error('El objeto no es una instancia de la clase field');
@@ -243,10 +317,10 @@ export class fieldList {
 
     editField(fieldCode, newField) {
         if (newField instanceof field) {
-            if (this.fields[fieldCode]) {
+            if (this[fieldCode]) {
                 // Mantener el índice original
-                newField.index = this.fields[fieldCode].index;
-                this.fields[fieldCode] = newField;
+                newField.index = this[fieldCode].index;
+                this[fieldCode] = newField;
                 this._reassignIndexes();
             } else {
                 throw new Error('El campo con el código especificado no existe');
@@ -257,8 +331,8 @@ export class fieldList {
     }
 
     removeField(fieldCode) {
-        if (this.fields[fieldCode]) {
-            delete this.fields[fieldCode];
+        if (this[fieldCode]) {
+            delete this[fieldCode];
             this._reassignIndexes();
         } else {
             throw new Error('El campo con el código especificado no existe');
@@ -267,34 +341,34 @@ export class fieldList {
 
     returnFields() {
         // Devuelve los campos ordenados por index ascendente
-        return Object.values(this.fields)
+        return Object.values(this)
             .sort((a, b) => a.index - b.index);
     }
 
     listFieldKeys() {
         // Devuelve los fieldCode ordenados por index ascendente
-        return Object.values(this.fields)
+        return Object.values(this)
             .sort((a, b) => (a.index - b.index))
             .map(field => field.key());
     }
 
     listFieldValues(language = 'es') {
         // Devuelve los valores ordenados por index ascendente
-        return Object.values(this.fields)
+        return Object.values(this)
             .sort((a, b) => (a.index - b.index))
             .map(field => field.value(language));
     }
 
     listFieldIndexes() {
         // Devuelve los índices ordenados por index ascendente
-        return Object.values(this.fields)
+        return Object.values(this)
             .sort((a, b) => (a.index - b.index))
             .map(field => field.index);
     }
 
     listFieldKeyNames() {
         // Devuelve los pares {fieldCode: fieldNameEs} ordenados por index ascendente
-        return Object.values(this.fields)
+        return Object.values(this)
             .sort((a, b) => (a.index - b.index))
             .map(field => field.keyValue());
     }
@@ -305,7 +379,7 @@ export class fieldList {
      * @returns {field|null}
      */
     getField(fieldCode) {
-        return this.fields[fieldCode] || null;
+        return this[fieldCode] || null;
     }
 
     /**
@@ -320,25 +394,3 @@ export class fieldList {
         this._reassignIndexes();
     }
 }
-
-// Añadimos helpers en dataDocument para delegar operaciones a fieldList
-Object.assign(dataDocument.prototype, {
-    getField(fieldCode) {
-        return this.fields.getField(fieldCode);
-    },
-    addField(fieldInstance) {
-        return this.fields.addField(fieldInstance);
-    },
-    editField(fieldCode, newField) {
-        return this.fields.editField(fieldCode, newField);
-    },
-    removeField(fieldCode) {
-        return this.fields.removeField(fieldCode);
-    },
-    listFieldKeys() {
-        return this.fields.listFieldKeys();
-    },
-    returnFields() {
-        return this.fields.returnFields();
-    }
-});
