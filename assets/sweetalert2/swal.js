@@ -2,7 +2,7 @@ export function sAlert(type, title, content = null, confirmText = 'Ok', cancelTe
     let confirmButtonColorClass, cancelButtonColorClass;
     switch (type) {
         case 'info':
-            confirmButtonColorClass = btn - primary;
+            confirmButtonColorClass = 'btn-primary';
             break;
         case 'success':
             confirmButtonColorClass = 'btn-success';
@@ -24,7 +24,7 @@ export function sAlert(type, title, content = null, confirmText = 'Ok', cancelTe
     }
 
     Swal.fire({
-        theme: 'bootstrap-5',
+        // theme: 'bootstrap-5',
         title: title,
         icon: type,
         html: content,
@@ -55,7 +55,7 @@ export function sToast(type, title, content = null, timer = 5000, position = 'to
     let confirmButtonColorClass, cancelButtonColorClass;
     switch (type) {
         case 'info':
-            confirmButtonColorClass = btn - primary;
+            confirmButtonColorClass = 'btn-info';
             break;
         case 'success':
             confirmButtonColorClass = 'btn-success';
@@ -68,7 +68,7 @@ export function sToast(type, title, content = null, timer = 5000, position = 'to
             confirmButtonColorClass = 'btn-danger';
             break;
         case 'question':
-            confirmButtonColorClass = 'btn-info';
+            confirmButtonColorClass = 'btn-primary';
             if (confirmText === 'Ok') { confirmText = 'Si' };
             if (!denyText) { denyText = 'No' };
             break;
@@ -76,7 +76,7 @@ export function sToast(type, title, content = null, timer = 5000, position = 'to
             type = 'info';
     }
     Swal.fire({
-        theme: 'bootstrap-5',
+        // theme: 'bootstrap-5',
         toast: true,
         position: position, // Posición: top-start, top-end, bottom-start
         icon: type,

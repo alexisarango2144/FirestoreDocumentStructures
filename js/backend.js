@@ -1,4 +1,4 @@
-import { getDocuments } from "./firebase/firebaseCRUD.js";
+import { getDocuments, completeDeleteDocument } from "./firebase/firebaseCRUD.js";
 import { sToast } from "../assets/sweetalert2/swal.js";
 
 
@@ -27,7 +27,6 @@ export async function readAllDocuments(collectionName) {
         ));
   } catch (e) {
     sToast('error', 'Error al obtener los documentos', 'Revisa la consola para más detalles.');
-    console.log("Error en readAllDocuments: " + e.message);
   }
 }
 
@@ -44,9 +43,21 @@ export async function updateDocumentInCollection(data, collectionName, documentI
     let response = await updateDocument(firestoreData, collectionName, documentId);
     return response;
   } catch (e) {
-    Logger.log("Error en updateDocumentInCollection: " + e.message);
-    return { error: "No se pudo actualizar el documento. " + e.message };
+    sToast('error', 'Ocurrió un error al actualizar la tabla');
   }
+}
+
+/**
+ * Realiza un eliminado completo de la tabla por su ID, para eliminación lógica se podría usar `deleteDocument`.
+ * @param {*} tableId 
+ */
+export async function deleteTableById(tableId) {
+    try {
+        const response = await completeDeleteDocument('displayTables', tableId);
+        return response;
+    } catch (error) {
+        sToast('error', 'Ocurrió un error al eliminar la tabla');
+    } 
 }
 
 
@@ -81,6 +92,19 @@ export class dataDocument {
         this.isAdminPrivative = isAdminPrivative;
         this.isEnabled = isEnabled;
         this.documentId = documentId; // ID del documento en Firestore
+    }
+
+    fromObject(obj = {}) {
+        return new dataDocument(
+            obj.tableId,
+            obj.tableDescriptionEs,
+            obj.tableDescriptionEn,
+            obj.fields,
+            obj.isVisible,
+            obj.isAdminPrivative,
+            obj.isEnabled,
+            obj.documentId
+        );
     }
 
     structure() {
@@ -391,6 +415,6 @@ export class fieldList {
         const f = this.getField(fieldCode);
         if (!f) throw new Error('Campo no encontrado: ' + fieldCode);
         f.index = newIndex;
-        this._reassignIndexes();
+        // this._reassignIndexes();
     }
 }

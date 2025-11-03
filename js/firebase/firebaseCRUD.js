@@ -190,6 +190,7 @@ export async function completeDeleteDocument(collectionName = "patients", docume
     var path = `/${collectionName}/${documentId}`;
     try {
         var response = await firestoreRequest(path, "DELETE");
+        response.ok = true;
         return response;
     } catch (e) {
         throw new Error("No se pudo eliminar el documento: " + (e && e.message ? e.message : e));

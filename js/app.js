@@ -7,13 +7,13 @@ let editingTableCode = null;
 let editingFieldCode = null;
 let currentTable = new dataDocument();
 let currentField = new field();
-// FieldList temporal para la creación de nuevas tablas
-let tableTempFieldList = new fieldList();
-currentTable.fields = tableTempFieldList;
+// Copia de dataDocument original para la validación durante edición de campos
+let tableTempOriginalData = new dataDocument();
+
 // Variables compartidas en window para que otros módulos (forms.js) puedan accederlas
 window.currentTable = currentTable;
 window.currentField = currentField;
-window.tableTempFieldList = tableTempFieldList;
+window.tableTempOriginalData = tableTempOriginalData;
 // DataTable para mostrar las tablas creadas
 let createdDisplayTables;
 
@@ -120,13 +120,13 @@ runOnDomReady(async () => {
 tableAddedFields.on('row-reorder', function (e, details) {
     if (!details.length) return;
 
-    // Se modifican los índices en el objeto fieldList y se actualiza la tabla sin recargar todo
+    // Se modifican los índices en el objeto y se actualiza la tabla sin recargar todo
     details.forEach(change => {
         const rowData = tableAddedFields.row(change.node).data();
         editingFieldCode = rowData[1];
-        currentField = currentTable.getField(editingFieldCode);
+        currentField = window.currentTable.getField(editingFieldCode);
         if (currentField) {
-            currentTable.fields.moveField(editingFieldCode, change.newPosition);
+            window.currentTable.fields.moveField(editingFieldCode, change.newPosition);
 
             // Actualiza la fila en la tabla
             tableAddedFields.row(change.node).data([
@@ -141,6 +141,7 @@ tableAddedFields.on('row-reorder', function (e, details) {
                 currentField.isEnabled ? `<input class="form-check-input" type="checkbox" checked disabled>` : `<input class="form-check-input" type="checkbox" disabled>`,
                 `<button class="btn btn-sm btn-success btn-editField" data-id="${currentField.fieldCode}"><i class="bi bi-pencil-square"></i></button> <button class="btn btn-sm btn-danger btn-deleteField" data-id="${currentField.fieldCode}"><i class="bi bi-trash3-fill"></i></button>`
             ]);
+            
         }
     });
     tableAddedFields.draw(false);

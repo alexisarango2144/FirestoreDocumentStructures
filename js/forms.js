@@ -1,10 +1,8 @@
 import { sAlert, sToast } from "../assets/sweetalert2/swal.js";
-import { field, fieldList, dataDocument } from "./backend.js";
+import { field, dataDocument, deleteTableById } from "./backend.js";
 import { createDocument, updateDocument, getDocumentById } from "./firebase/firebaseCRUD.js";
 import { fieldToDatatable } from "./utilities.js";
 
-// Instancia de fieldList con el contexto de los campos activos (se establece desde app.js cuando se abre el modal de tabla)
-let activeFieldList = null;
 let editingFieldCode = null;
 let editingTableCode = null;
 
@@ -78,6 +76,20 @@ export function inicializarBotonesFormularios() {
         footer.appendChild(updateTableBtn, footer.firstChild.nextSibling);
     }
     updateTableBtn.addEventListener('click', () => {
+        actualizarTablaLocal();
+
+        // Validar si hubo cambios comparando la estructura serializada (deep compare)
+        try {
+            const originalStruct = tableTempOriginalData ? JSON.stringify(tableTempOriginalData.structure() || {}) : null;
+            const currentStruct = window.currentTable ? JSON.stringify(window.currentTable.structure() || {}) : null;
+            if (originalStruct === currentStruct) {
+                sAlert('info', 'No se detectaron cambios en la tabla.');
+                return;
+            }
+        } catch (e) {
+            // En caso de error al serializar, no bloqueamos la actualización — hacemos la petición
+            console.warn('Error comparando estructuras de tabla:', e);
+        }
         sAlert(
             'question',
             '¿Deseas guardar los cambios en la tabla?',
@@ -135,68 +147,12 @@ export function inicializarBotonesFormularios() {
         () => { return false }
     ));
 
-
-
-
-
-
-
-
-    // Delegación de eventos para los botones de edición de campo y tabla
-    document.getElementById('tableAddedFields').addEventListener('click', function (e) {
-        if (e.target.closest('.btn-editField')) {
-            e.preventDefault();
-            e.stopPropagation();
-            editingFieldCode = e.target.closest('.btn-editField').getAttribute('data-id');
-            // Obtener la instancia de field desde fieldList
-            const fieldInstance = currentTable.getField(editingFieldCode);
-            if (fieldInstance) {
-                currentField = fieldInstance;
-                // Cerrar el modal de tabla primero (Ya que no se aplica el toggle directamente)
-                const tableModalEl = document.getElementById('tableCreationModal');
-                const tableModal = bootstrap.Modal.getInstance(tableModalEl);
-                if (tableModal) {
-                    // Marcamos que el modal de tabla debe reabrirse después de editar/crear campo
-                    if (tableModalEl) tableModalEl.dataset.reopenAfterField = 'true';
-                    tableModal.hide();
-                }
-
-                // Esperar un momento antes de abrir el nuevo modal
-                setTimeout(() => {
-                    // Marcar modal con el código del campo que se está editando
-                    const fieldModalEl = document.getElementById('fieldCreationModal');
-                    if (fieldModalEl) fieldModalEl.dataset.editing = currentField.fieldCode;
-                    setFieldModalMode('edit', currentField);
-                    const fieldModal = new bootstrap.Modal(document.getElementById('fieldCreationModal'));
-                    fieldModal.show();
-                }, 150);
-            }
-        }
-        // Delegación de eventos para los botones de eliminación de campo
-        if (e.target.closest('.btn-deleteField')) {
-            e.preventDefault();
-            e.stopPropagation();
-            editingFieldCode = e.target.closest('.btn-deleteField').getAttribute('data-id');
-            currentField = currentTable.getField(editingFieldCode);
-            if (currentField) {
-                console.log('Eliminar campo:', currentField);
-                currentTable.removeField(editingFieldCode);
-                fieldToDatatable(currentTable.fields, tableAddedFields);
-                tableAddedFields.draw();
-                // TODO: 
-                // Agregar confirmación antes de eliminar
-                // Usaremos la librería SweetAlert2
-                // Reemplazar alert() por SweetAlert2 en todo el proyecto
-            }
-        }
-    });
-
     document.getElementById('createdDisplayTables').addEventListener('click', async function (e) {
         if (e.target.closest('.btn-editTable')) {
             const documentId = e.target.closest('.btn-editTable').getAttribute('data-id');
             const tableData = await getDocumentById('displayTables', documentId);
-            // Convertir a instancia de dataDocument
-            currentTable = new dataDocument(
+            // Convertir a instancia de dataDocument y almacenarla en tableTempOriginalData para validaciones posteriores
+            tableTempOriginalData = new dataDocument(
                 tableData.tableId,
                 tableData.tableDescriptionEs,
                 tableData.tableDescriptionEn,
@@ -206,12 +162,22 @@ export function inicializarBotonesFormularios() {
                 tableData.isEnabled,
                 tableData.documentId || documentId
             );
-            editingTableCode = currentTable.tableId;
+            // Creamos una copia separada para edición (window.currentTable) a partir de la estructura
+            const origStruct = tableTempOriginalData.structure();
+            window.currentTable = new dataDocument(
+                origStruct.tableId,
+                origStruct.tableDescriptionEs,
+                origStruct.tableDescriptionEn,
+                origStruct.fields || {},
+                origStruct.isVisible,
+                origStruct.isAdminPrivative,
+                origStruct.isEnabled,
+                origStruct.documentId || documentId
+            );
+            editingTableCode = window.currentTable.tableId;
 
             if (currentTable) {
                 setTableModalMode('edit', currentTable);
-                // Establecer la lista de campos del documento como contexto activo
-                setActiveFieldContext(currentTable.fields);
                 const tableModal = new bootstrap.Modal(document.getElementById('tableCreationModal'));
                 fieldToDatatable(currentTable.fields, tableAddedFields);
                 tableAddedFields.draw();
@@ -219,42 +185,44 @@ export function inicializarBotonesFormularios() {
             }
         }
 
-        // Delegación de eventos para los botones de eliminación de campo
-        if (e.target.closest('.btn-deleteField')) {
-            editingFieldCode = e.target.closest('.btn-deleteField').getAttribute('data-id');
-            currentField = currentTable.getField(editingFieldCode);
-            if (currentField) {
-                console.log('Eliminar campo:', currentField);
-                currentTable.removeField(editingFieldCode);
-                fieldToDatatable(currentTable.fields, tableAddedFields);
-                tableAddedFields.draw();
-                // TODO: 
-                // Agregar confirmación antes de eliminar
-                // Usaremos la librería SweetAlert2
-                // Reemplazar alert() por SweetAlert2 en todo el proyecto
+        if (e.target.closest('.btn-deleteTable')) {
+            const btn = e.target.closest('.btn-deleteTable');
+            const documentId = btn.getAttribute('data-id');
+            // Intentamos obtener el tableId desde la fila de la tabla en el DOM
+            let tableIdDisplay = null;
+            const row = btn.closest('tr');
+            if (row) {
+                const firstCell = row.querySelector('td, th');
+                if (firstCell) tableIdDisplay = firstCell.textContent.trim();
             }
+            const displayName = tableIdDisplay || documentId;
+
+            // Confirmación usando sAlert; en la confirmación ejecutamos la eliminación
+            sAlert(
+                'warning',
+                '¿Desea eliminar la tabla?',
+                `Esta operación eliminará la tabla ${displayName} de forma irreversible.`,
+                'Eliminar',
+                null,
+                'Cancelar',
+                async () => {
+                    // Ejecutar eliminación y refrescar la lista
+                    const response = await deleteTableById(documentId);
+                    if (response.ok) {
+                        await refreshDisplayTablesTable();
+                        sToast('success', 'Tabla eliminada', `La tabla ${displayName} fue eliminada correctamente.`);
+                    } else {
+                        sAlert('error', 'Ocurrió un error al eliminar la tabla');
+                    }
+                },
+                () => {
+                    // Cancel: no hacer nada
+                    return false;
+                }
+            );
         }
     });
-}
 
-// Botón para abrir el modal de campos en modo agregar
-const addFieldBtn = document.getElementById('addFieldBtn');
-if (addFieldBtn) {
-    addFieldBtn.addEventListener('click', function () {
-        // Limpiar cualquier edición previa
-        const fieldModalEl = document.getElementById('fieldCreationModal');
-        if (fieldModalEl) delete fieldModalEl.dataset.editing;
-        setFieldModalMode('add');
-    });
-}
-// Botón para abrir el modal de tablas en modo agregar
-const addTableBtn = document.getElementById('addTableBtn');
-if (addTableBtn) {
-    addTableBtn.addEventListener('click', function () {
-        setTableModalMode('add');
-    });
-
-    // Delegación de eventos para los botones de edición de campo y tabla
     document.getElementById('tableAddedFields').addEventListener('click', function (e) {
         if (e.target.closest('.btn-editField')) {
             e.preventDefault();
@@ -287,18 +255,53 @@ if (addTableBtn) {
             e.preventDefault();
             e.stopPropagation();
             editingFieldCode = e.target.closest('.btn-deleteField').getAttribute('data-id');
-            const _cur = window.currentTable && typeof window.currentTable.getField === 'function' ? window.currentTable.getField(editingFieldCode) : null;
-            if (_cur) {
-                console.log('Eliminar campo:', _cur);
-                if (window.currentTable && typeof window.currentTable.removeField === 'function') window.currentTable.removeField(editingFieldCode);
-                fieldToDatatable(window.currentTable.fields, window.tableAddedFields);
-                if (window.tableAddedFields && typeof window.tableAddedFields.draw === 'function') window.tableAddedFields.draw();
-                // TODO: 
-                // Agregar confirmación antes de eliminar
-                // Usaremos la librería SweetAlert2
-                // Reemplazar alert() por SweetAlert2 en todo el proyecto
+
+            const fieldInstance = window.currentTable && typeof window.currentTable.getField === 'function' ? window.currentTable.getField(editingFieldCode) : null;
+
+            if (fieldInstance) {
+                sAlert(
+                    'warning',
+                    '¿Desea eliminar la el campo?',
+                    `Esta operación eliminará el campo ${editingFieldCode} de forma irreversible.`,
+                    'Eliminar',
+                    null,
+                    'Cancelar',
+                    async () => {
+                        try {
+                            if (window.currentTable && typeof window.currentTable.removeField === 'function') window.currentTable.removeField(editingFieldCode);
+                            sToast('success', 'Campo eliminado', `El campo ${editingFieldCode} fue eliminado correctamente.`);
+                            fieldCreationForm.reset();
+                            fieldToDatatable(window.currentTable.fields, window.tableAddedFields);
+                            window.tableAddedFields.draw();
+                        } catch (error) {
+                            sAlert('error', 'Ocurrió un error al eliminar el campo');
+                        }
+                    },
+                    () => {
+                        // Cancel: no hacer nada
+                        return false;
+                    }
+                );
             }
         }
+    });
+}
+
+// Botón para abrir el modal de campos en modo agregar
+const addFieldBtn = document.getElementById('addFieldBtn');
+if (addFieldBtn) {
+    addFieldBtn.addEventListener('click', function () {
+        // Limpiar cualquier edición previa
+        const fieldModalEl = document.getElementById('fieldCreationModal');
+        if (fieldModalEl) delete fieldModalEl.dataset.editing;
+        setFieldModalMode('add');
+    });
+}
+// Botón para abrir el modal de tablas en modo agregar
+const addTableBtn = document.getElementById('addTableBtn');
+if (addTableBtn) {
+    addTableBtn.addEventListener('click', function () {
+        setTableModalMode('add');
     });
 }
 
@@ -361,12 +364,7 @@ function setTableModalMode(mode, tableData = null) {
         // Reiniciar la tabla y lista temporal de campos creando una nueva instancia
         // Usar variables compartidas en window para evitar dependencias del orden de evaluación
         window.currentTable = new dataDocument();
-        window.tableTempFieldList = new fieldList();
-        // Asociar la lista de campos temporales al documento
-        window.currentTable.fields = window.tableTempFieldList;
-        // Actualizar el contexto activo de campos en este módulo
-        activeFieldList = window.tableTempFieldList;
-        fieldToDatatable(window.tableTempFieldList, window.tableAddedFields);
+        fieldToDatatable(currentTable.fields, window.tableAddedFields);
         if (window.tableAddedFields && typeof window.tableAddedFields.draw === 'function') window.tableAddedFields.draw();
 
         // Borrar flag de edición si existe
@@ -397,7 +395,7 @@ function setTableModalMode(mode, tableData = null) {
  */
 async function crearTabla() {
     // Obtener el fieldList activo
-    if (!activeFieldList) {
+    if (!currentTable || !currentTable.fields || currentTable.fields.listFieldKeys().length === 0) {
         sAlert('error', 'No hay campos definidos para la nueva tabla.');
         return;
     }
@@ -419,7 +417,7 @@ async function crearTabla() {
         tableId,
         tableDescriptionEs,
         tableDescriptionEn,
-        activeFieldList.toObject() ?? {},
+        window.currentTable.fields.toObject() ?? {},
         isVisible,
         isAdminPrivative,
         isEnabled
@@ -440,6 +438,23 @@ async function crearTabla() {
     }
 }
 
+function actualizarTablaLocal() {
+    // Valores del formulario
+    const tableId = document.getElementById('tableId').value.trim();
+    const tableDescriptionEs = document.getElementById('tableDescriptionEs').value.trim();
+    const tableDescriptionEn = document.getElementById('tableDescriptionEn').value.trim();
+    const isVisible = document.getElementById('tableIsVisible').checked;
+    const isAdminPrivative = document.getElementById('tableIsAdminPrivative').checked;
+    const isEnabled = document.getElementById('tableIsEnabled').checked;
+
+    window.currentTable.tableId = tableId;
+    window.currentTable.tableDescriptionEs = tableDescriptionEs
+    window.currentTable.tableDescriptionEn = tableDescriptionEn
+    window.currentTable.isVisible = isVisible
+    window.currentTable.isAdminPrivative = isAdminPrivative
+    window.currentTable.isEnabled = isEnabled
+}
+
 /**
  * Guarda los cambios al editar una tabla existente en Firestore usando los datos del formulario y el fieldList activo.
  * Muestra alertas y toasts según el resultado.
@@ -454,31 +469,22 @@ async function guardarEdicionTabla() {
         return;
     }
 
+
     // Valores del formulario
     const tableId = document.getElementById('tableId').value.trim();
     const tableDescriptionEs = document.getElementById('tableDescriptionEs').value.trim();
-    const tableDescriptionEn = document.getElementById('tableDescriptionEn').value.trim();
-    const isVisible = document.getElementById('tableIsVisible').checked;
-    const isAdminPrivative = document.getElementById('tableIsAdminPrivative').checked;
-    const isEnabled = document.getElementById('tableIsEnabled').checked;
-
     if (!tableId || !tableDescriptionEs) {
         sAlert('warning', 'Por favor complete los campos obligatorios de la tabla.');
         return;
     }
 
-    const data = new dataDocument(
-        tableId,
-        tableDescriptionEs,
-        tableDescriptionEn,
-        activeFieldList.toObject() ?? {},
-        isVisible,
-        isAdminPrivative,
-        isEnabled
-    ).toObject();
+    if (!currentTable || !currentTable.fields || currentTable.fields.listFieldKeys().length === 0) {
+        sAlert('error', 'No hay campos definidos para la tabla.');
+        return;
+    }
 
     try {
-        const response = await updateDocument(data, 'displayTables', documentId);
+        const response = await updateDocument(window.currentTable, 'displayTables', documentId);
         sToast('success', 'Tabla actualizada', 'Los cambios fueron guardados correctamente.');
         // Cerrar modal
         const modal = bootstrap.Modal.getInstance(document.getElementById('tableCreationModal'));
@@ -488,7 +494,6 @@ async function guardarEdicionTabla() {
         return response;
     } catch (e) {
         sAlert('error', 'Error actualizando la tabla', e && e.message ? e.message : 'Ocurrió un error');
-        console.log('Error en guardarEdicionTabla:', e);
     }
 }
 
@@ -525,7 +530,7 @@ export async function agregarCampo() {
     }
 
     // Validar si ya existe un campo con el mismo fieldCode
-    if (activeFieldList && activeFieldList.getField(fieldCode)) {
+    if (currentTable.fields && currentTable.fields.getField(fieldCode)) {
         // Usar SweetAlert via sAlert para confirmar sobrescritura
         sAlert(
             'question',
@@ -536,9 +541,9 @@ export async function agregarCampo() {
             null,
             () => {
                 // confirmCallback: sobrescribir
-                activeFieldList.editField(fieldCode, new field(
+                currentTable.fields.editField(fieldCode, new field(
                     fieldCode,
-                    activeFieldList.listFieldKeys().indexOf(fieldCode),
+                    currentTable.fields.listFieldKeys().indexOf(fieldCode),
                     fieldDataType,
                     fieldNameEs,
                     fieldNameEn,
@@ -551,7 +556,7 @@ export async function agregarCampo() {
                     isEnabled
                 ));
                 // Notificar a la UI que los campos cambiaron
-                document.dispatchEvent(new CustomEvent('fields-changed', { detail: { fieldList: activeFieldList } }));
+                document.dispatchEvent(new CustomEvent('fields-changed', { detail: { fieldList: currentTable.fields } }));
                 document.getElementById('fieldCreationForm').reset();
                 sToast('success', 'Campo sobrescrito', 'El campo fue sobrescrito correctamente.');
                 // Cerrar el modal y reabrir la tabla si corresponde
@@ -577,7 +582,7 @@ export async function agregarCampo() {
     // Crear el nuevo campo y agregarlo
     const nuevoCampo = new field(
         fieldCode,
-        activeFieldList.listFieldKeys().length,
+        currentTable.fields.listFieldKeys().length,
         fieldDataType,
         fieldNameEs,
         fieldNameEn,
@@ -589,9 +594,9 @@ export async function agregarCampo() {
         isAdminPrivative,
         isEnabled
     );
-    activeFieldList.addField(nuevoCampo);
+    currentTable.fields.addField(nuevoCampo);
     // Notificar a la UI que los campos cambiaron
-    document.dispatchEvent(new CustomEvent('fields-changed', { detail: { fieldList: activeFieldList } }));
+    document.dispatchEvent(new CustomEvent('fields-changed', { detail: { fieldList: currentTable.fields } }));
     // Limpiar el formulario
     document.getElementById('fieldCreationForm').reset();
     sToast('success', 'Campo agregado', 'El campo fue agregado correctamente a la tabla.');
@@ -637,15 +642,15 @@ function guardarEdicionCampo() {
         return;
     }
 
-    if (!activeFieldList) {
+    if (!currentTable) {
         sAlert('error', 'No se identificó la tabla actual.');
         return;
     }
 
     // Actualizar el campo existente
-    activeFieldList.editField(editingFieldCode, new field(
+    currentTable.fields.editField(editingFieldCode, new field(
         fieldCode,
-        activeFieldList.listFieldKeys().indexOf(editingFieldCode),
+        currentTable.fields.listFieldKeys().indexOf(editingFieldCode),
         fieldDataType,
         fieldNameEs,
         fieldNameEn,
@@ -658,7 +663,7 @@ function guardarEdicionCampo() {
         isEnabled
     ));
     // Notificar a la UI que los campos cambiaron
-    document.dispatchEvent(new CustomEvent('fields-changed', { detail: { fieldList: activeFieldList } }));
+    document.dispatchEvent(new CustomEvent('fields-changed', { detail: { fieldList: currentTable.fields } }));
     // Limpiar el formulario
     document.getElementById('fieldCreationForm').reset();
     sToast('success', 'Campo actualizado', 'El campo fue modificado correctamente.');
