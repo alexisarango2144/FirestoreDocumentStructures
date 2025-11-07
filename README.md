@@ -59,7 +59,9 @@ python -m http.server 8000
 # Abrir http://localhost:8000 en el navegador
 ```
 
-3) Configurar Firebase (si vas a usar persistencia):
+3.1 Proporcionar la clave de autenticación a Firebase para la base de datos de prueba 
+
+3.2) Configurar Firebase (si vas a usar persistencia propia):
 
 - Añade tus credenciales/local config en `js/firebase/variablesMock.env.js` o implementa un archivo equivalente con tus claves. No subas secretos al repositorio.
 
@@ -92,5 +94,6 @@ node --check js/forms.js
 Uso educativo y modificaciones personales permitidas. Este repositorio se comparte con finalidad didáctica: puedes estudiar, modificar y usar el código con fines educativos y personales, pero no sublicenciar ni comercializar el contenido sin permiso explícito del autor.
 
 ---
+
 
 # fsDocumentStructures
